@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧬 NeoMag V7 - Profesyonel Bio-Fizik Laboratuvarı</title>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #3b82f6; 
+            --secondary: #10b981; 
+            --accent: #f59e0b; 
+            --success: #22c55e; 
+            --warning: #eab308; 
+            --error: #ef4444; 
+            --bg1: #111827; 
+            --bg2: #1f2937; 
+            --bg3: #374151; 
+            --bg4: #4b5563; 
+            --text1: #f3f4f6; 
+            --text2: #d1d5db; 
+            --text3: #9ca3af; 
+            --border: #4b5563; 
+            --elite: #ffd700; --veteran: #4169e1; --strong: #32cd32;
+            --energetic: #ff6347; --young: #00bfff; --basic: #ff8c00;
+            --glass: rgba(31, 41, 55, 0.75); 
+            --glass-border: rgba(75, 85, 99, 0.55); 
+            --rgb-primary: 59, 130, 246;
+            --rgb-secondary: 16, 185, 129;
+            --rgb-accent: 245, 158, 11;
+            --rgb-success: 34, 197, 94;
+            --rgb-warning: 234, 179, 8;
+            --rgb-error: 239, 68, 68;
+            --rgb-bg1: 17, 24, 39;
+            --rgb-text1: 243, 244, 246;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 50%, var(--primary) 120%);
+            color: var(--text1); min-height: 100vh; overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-areas: "header header"
+                                 "sidebar main";
+            grid-template-rows: 70px 1fr;
+            grid-template-columns: 320px 1fr; 
+            min-height: 100vh; gap: 16px; padding: 16px;
+        }
+
+        .header {
+            grid-area: header;
+            background: var(--glass);
+            backdrop-filter: blur(15px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px; display: flex; justify-content: space-between;
+            align-items: center; padding: 0 28px; box-shadow: 0 8px 32px rgba(0,0,0,0.37);
+            z-index: 100;
+        }
+
+        .logo { font-size: 26px; font-weight: 700; color: var(--text1); letter-spacing: -0.5px; }
+        .logo i { margin-right: 8px; color: var(--primary); }
+        
+        .status-bar { display: flex; gap: 16px; align-items: center; }
+        .status-pill {
+            padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .status-pill i { font-size: 1em; }
+        .status-running { background-color: var(--success); color: white; }
+        .status-paused { background-color: var(--warning); color: var(--bg1); }
+        .status-stopped { background-color: var(--error); color: white; }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: var(--glass);
+            backdrop-filter: blur(15px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px; padding: 24px; overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.37);
+            display: flex; flex-direction: column; gap: 20px;
+        }
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-thumb { background-color: var(--accent); border-radius: 3px; }
+        .sidebar::-webkit-scrollbar-track { background-color: transparent; }
+
+        .main-area {
+            grid-area: main; display: grid;
+            grid-template-areas: "simulation stats"
+                                 "tabs tabs"; 
+            grid-template-rows: minmax(400px, 55vh) auto; 
+            grid-template-columns: 1fr 380px; 
+            gap: 16px;
+        }
+
+        .panel { 
+            background: var(--glass);
+            backdrop-filter: blur(15px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px; padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.37);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .simulation-panel { grid-area: simulation; position: relative; }
+        .stats-panel { grid-area: stats; overflow-y: auto; }
+        
+        .tabs-container {
+            grid-area: tabs;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tab-navigation {
+            display: flex;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: transparent;
+            border: none;
+            color: var(--text2);
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s, border-bottom-color 0.2s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -1px;
+        }
+        .tab-button:hover { color: var(--text1); }
+        .tab-button.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            font-weight: 600;
+        }
+        .tab-button i { margin-right: 8px; }
+
+        .tab-content {
+            display: none;
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 5px;
+        }
+        .tab-content.active { display: block; }
+        .tab-content::-webkit-scrollbar { width: 6px; }
+        .tab-content::-webkit-scrollbar-thumb { background-color: var(--accent); border-radius: 3px; }
+
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+
+        .section { margin-bottom: 0; }
+        .section-title { 
+            font-size: 16px; font-weight: 600; color: var(--accent);
+            margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.8px;
+            border-bottom: 1px solid var(--border); padding-bottom: 8px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .section-title i { font-size: 1.1em; }
+
+        .btn {
+            width: 100%; padding: 12px 16px; margin-bottom: 10px; border: none; border-radius: 8px;
+            background: linear-gradient(145deg, var(--primary), var(--secondary));
+            color: white; font-weight: 600; cursor: pointer; transition: all 0.25s ease-out;
+            font-size: 13px; text-transform: uppercase; letter-spacing: 0.7px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn:hover { 
+            transform: translateY(-3px) scale(1.02); 
+            box-shadow: 0 10px 25px rgba(var(--rgb-secondary), 0.4); 
+        }
+        .btn:active { transform: translateY(-1px); }
+        .btn-danger { background: linear-gradient(145deg, var(--error), #c53030); }
+        .btn-warning { background: linear-gradient(145deg, var(--warning), #dd6b20); }
+        .btn-info { background: linear-gradient(145deg, #38bdf8, #0ea5e9); }
+        .btn:disabled { background: var(--bg3); color: var(--text3); cursor: not-allowed; box-shadow: none; transform: none;}
+
+        .input-group { margin-bottom: 16px; }
+        .input-group label { 
+            display: block; margin-bottom: 6px; color: var(--text2); 
+            font-size: 12px; font-weight: 500;
+        }
+        .input-group input, .input-group textarea { 
+            width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px;
+            background: var(--bg2); color: var(--text1); font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-group textarea { resize: vertical; min-height: 70px; }
+        .input-group input:focus, .input-group textarea:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(var(--rgb-accent), 0.3); 
+        }
+
+        .canvas {
+            width: 100%; height: 100%; 
+            background-image: 
+                radial-gradient(circle at 15% 25%, rgba(var(--rgb-primary), 0.15), transparent 50%),
+                radial-gradient(circle at 85% 75%, rgba(var(--rgb-accent), 0.1), transparent 50%),
+                linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 100%);
+            border-radius: 10px; position: relative; overflow: hidden; cursor: grab;
+            border: 1px solid var(--glass-border);
+        }
+        .canvas:active { cursor: grabbing; }
+
+        .bacterium {
+            position: absolute; border-radius: 50%; transition: all 0.1s ease-out;
+            cursor: pointer; 
+            border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 0 12px rgba(0,0,0,0.5), inset 0 0 5px rgba(255,255,255,0.2);
+        }
+        .bacterium:hover { 
+            transform: scale(1.25); 
+            box-shadow: 0 0 25px rgba(var(--rgb-accent), 0.7), inset 0 0 8px rgba(255,255,255,0.3);
+            z-index: 10; border-color: var(--accent);
+        }
+
+        .bacterium.elite { background: radial-gradient(circle, var(--elite), rgba(255, 215, 0, 0.7)); }
+        .bacterium.veteran { background: radial-gradient(circle, var(--veteran), rgba(65, 105, 225, 0.7)); }
+        .bacterium.strong { background: radial-gradient(circle, var(--strong), rgba(50, 205, 50, 0.7)); }
+        .bacterium.energetic { background: radial-gradient(circle, var(--energetic), rgba(255, 99, 71, 0.7)); }
+        .bacterium.young { background: radial-gradient(circle, var(--young), rgba(0, 191, 255, 0.7)); }
+        .bacterium.basic { background: radial-gradient(circle, var(--basic), rgba(255, 140, 0, 0.7)); }
+
+        .food { 
+            position: absolute; width: 6px; height: 6px; 
+            background: radial-gradient(circle, #34d399, #059669); 
+            border-radius: 50%; box-shadow: 0 0 10px #34d399, 0 0 20px #34d399;
+            animation: pulse 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 1; }
+        }
+
+        .stat-card {
+            background: linear-gradient(145deg, var(--bg3), var(--bg2));
+            border: 1px solid var(--glass-border);
+            border-radius: 10px; padding: 16px; margin-bottom: 10px; text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+
+        .stat-value { 
+            font-size: 22px; font-weight: 700; color: var(--secondary);
+            margin-bottom: 4px;
+        }
+        .stat-label { 
+            font-size: 11px; color: var(--text3); text-transform: uppercase; 
+            letter-spacing: 0.7px;
+        }
+
+        .chart-container {
+            background: linear-gradient(145deg, var(--bg3), var(--bg2));
+            border: 1px solid var(--glass-border);
+            border-radius: 10px; padding: 16px; min-height: 220px;
+            display: flex; flex-direction: column;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .chart-container:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+
+        .chart-title {
+            font-size: 13px; font-weight: 600; color: var(--accent);
+            margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.6px;
+            text-align: center;
+        }
+        .plotly-chart-div { flex-grow: 1; } 
+
+        .modal {
+            display: none; position: fixed; z-index: 2000; left: 0; top: 0; 
+            width: 100%; height: 100%; background: rgba(var(--rgb-bg1), 0.85); 
+            backdrop-filter: blur(8px) saturate(150%);
+            align-items: center; justify-content: center; 
+            opacity: 0; transition: opacity 0.3s ease-in-out;
+        }
+        .modal.active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-content {
+            background: linear-gradient(145deg, var(--bg2), var(--bg3));
+            padding: 28px; border-radius: 16px; width: 90%; max-width: 650px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+            position: relative; 
+            transform: scale(0.95);
+            transition: transform 0.3s ease-in-out;
+        }
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+        .close { 
+            position: absolute; top: 16px; right: 20px;
+            color: var(--text3); font-size: 32px; font-weight: bold; 
+            cursor: pointer; transition: color 0.2s, transform 0.2s;
+        }
+        .close:hover { color: var(--text1); transform: scale(1.1); }
+
+        .class-legend {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top: 16px;
+        }
+        .legend-item {
+            display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+            background: rgba(var(--rgb-text1), 0.08); border-radius: 6px; font-size: 11px;
+        }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        .keyboard-shortcuts {
+            position: fixed; bottom: 16px; right: 16px; padding: 14px;
+            background: var(--glass); backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border); border-radius: 8px;
+            font-size: 11px; color: var(--text2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000;
+        }
+        .keyboard-shortcuts strong { color: var(--accent); }
+
+        .loading { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: var(--text2); font-size: 16px; font-weight: 500;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+        }
+        .loading::before { 
+            content: ''; display: block; width: 24px; height: 24px;
+            border-radius: 50%; border: 3px solid var(--text3);
+            border-top-color: var(--accent);
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .connection-status {
+            padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .connected { background-color: var(--success); color: white; }
+        .disconnected { background-color: var(--error); color: white; }
+
+        .tabpfn-entry {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        .tabpfn-entry:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .tabpfn-entry h4 {
+            color: var(--accent);
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        .tabpfn-entry p {
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: var(--text2);
+        }
+        .tabpfn-entry .metric {
+            font-weight: 600;
+            color: var(--text1);
+        }
+
+        .params-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .params-section-title, .chart-section-title, .tabpfn-section-title {
+             text-align: left;
+             font-size: 18px;
+             color: var(--accent) !important;
+             margin-bottom: 20px;
+             border-bottom: 1px solid var(--border);
+             padding-bottom: 10px;
+        }
+        .chart-section-title { color: var(--primary) !important; }
+        .tabpfn-section-title { color: var(--secondary) !important; }
+        
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 9999;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .toast-notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .toast-notification.success { background-color: var(--success); }
+        .toast-notification.error { background-color: var(--error); }
+        .toast-notification.warning { background-color: var(--warning); }
+        .toast-notification.info { background-color: var(--primary); }
+
+        @media (max-width: 1200px) {
+            .main-area {
+                grid-template-areas: "simulation" "stats" "tabs";
+                grid-template-rows: 400px auto auto;
+                grid-template-columns: 1fr;
+            }
+            .stats-panel { max-height: 35vh; }
+        }
+
+        @media (max-width: 1024px) {
+            .app-container {
+                grid-template-areas: "header" "sidebar" "main";
+                grid-template-rows: 70px auto 1fr;
+                grid-template-columns: 1fr;
+            }
+            .sidebar { max-height: 45vh; overflow-y: auto; }
+        }
+        @media (max-width: 768px) {
+            .charts-grid { grid-template-columns: 1fr; } 
+            .logo { font-size: 20px; }
+            .status-pill { padding: 6px 10px; font-size: 10px;}
+            .btn { padding: 10px 14px; font-size: 12px;}
+            .header { padding: 0 16px; }
+            .tab-button { padding: 8px 12px; font-size: 13px;}
+        }
+        @media (max-width: 480px) {
+            .app-container { padding: 8px; gap: 8px; }
+            .header { padding: 0 10px; height: 60px;}
+            .logo { font-size: 18px; }
+            .status-bar { gap: 8px; }
+            .status-pill { padding: 5px 8px; font-size: 9px;}
+            .sidebar { padding: 16px; }
+            .panel { padding: 16px; }
+            .main-area {
+                grid-template-rows: 300px auto auto;
+            }
+        }
+    </style>
+</head>
+
+        <!-- Header -->
+        <header class="header">
+            <div class="logo"><i class="fas fa-dna"></i> NeoMag V7</div>
+            <div class="status-bar">
+                <div id="connectionStatus" class="connection-status disconnected"><i class="fas fa-wifi"></i> <span>BAĞLANTI...</span></div>
+                <div id="simulationStatus" class="status-pill status-stopped"><i class="fas fa-power-off"></i> <span>DURDU</span></div>
+                <div class="status-pill"><i class="fas fa-tachometer-alt"></i> FPS: <span id="fpsDisplay">--</span></div>
+                <div class="status-pill"><i class="fas fa-shoe-prints"></i> ADIM: <span id="stepDisplay">0</span></div>
+            </div>
+        </header>
+
+        <!-- Sidebar Controls -->
+        <aside class="sidebar">
+            <div class="section">
+                <h2 class="section-title"><i class="fas fa-play-circle"></i> Simülasyon Kontrolü</h2>
+                <button id="startBtn" class="btn"><i class="fas fa-rocket"></i> Başlat</button>
+                <button id="pauseBtn" class="btn btn-warning" disabled><i class="fas fa-pause"></i> Duraklat</button>
+                <button id="stopBtn" class="btn btn-danger" disabled><i class="fas fa-stop"></i> Durdur</button>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title"><i class="fas fa-microscope"></i> Başlangıç</h2>
+                <div class="input-group">
+                    <label for="bacteriaCount">Başlangıç Bakteri Sayısı</label>
+                    <input type="number" id="bacteriaCount" value="30" min="5" max="150">
+                </div>
+                <button id="addBacteriaBtn" class="btn" disabled><i class="fas fa-plus-circle"></i> 10 Bakteri Ekle</button>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title"><i class="fas fa-cogs"></i> İşlemler</h2>
+                <button id="exportDataBtn" class="btn"><i class="fas fa-download"></i> Veri Dışa Aktar</button>
+                <button id="aiAnalysisBtn" class="btn"><i class="fas fa-lightbulb"></i> AI Analiz</button>
+                <button id="triggerTabpfnBtn" class="btn btn-warning"><i class="fas fa-project-diagram"></i> TabPFN Tetikle</button>
+                <button id="analyzeTabpfnResultsBtn" class="btn btn-info"><i class="fas fa-brain"></i> TabPFN Yorumla</button>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title"><i class="fas fa-robot"></i> AI Asistan</h2>
+                <div class="input-group">
+                    <input type="text" id="aiQuestionInput" placeholder="AI'ya soru sor..." maxlength="200">
+                </div>
+                <button id="askAiBtn" class="btn"><i class="fas fa-question-circle"></i> Sor</button>
+                <div id="aiResponse" style="margin-top: 10px; padding: 10px; background: var(--bg3); border-radius: 6px; font-size: 12px; max-height: 150px; overflow-y: auto; display: none;"></div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title"><i class="fas fa-network-wired"></i> Ngrok Tunnel</h2>
+                <button id="ngrokStartBtn" class="btn"><i class="fas fa-satellite-dish"></i> Tunnel Başlat</button>
+                <button id="ngrokStopBtn" class="btn btn-danger" disabled><i class="fas fa-ban"></i> Tunnel Durdur</button>
+                <div id="ngrokUrl" style="margin-top: 10px; padding: 8px; background: var(--bg3); border-radius: 6px; font-size: 11px; display: none;">
+                    <strong>🌐 Public URL:</strong><br>
+                    <a id="ngrokLink" href="#" target="_blank" style="color: var(--accent); word-break: break-all;"></a>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title"><i class="fas fa-palette"></i> Bakteri Sınıfları</h2>
+                <div class="class-legend">
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--elite)"></div>Elite</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--veteran)"></div>Veteran</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--strong)"></div>Güçlü</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--energetic)"></div>Enerjik</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--young)"></div>Genç</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--basic)"></div>Temel</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Area -->
+        <main class="main-area">
+            <section class="simulation-panel panel">
+                <div id="simulationCanvas" class="canvas">
+                    <div class="loading">Simülasyon başlatılmayı bekliyor...</div>
+                </div>
+            </section>
+
+            <section class="stats-panel panel">
+                <h2 class="section-title"><i class="fas fa-chart-bar"></i> Canlı İstatistikler</h2>
+                <div id="statsContainer">
+                    <div class="stat-card"><div class="stat-value" id="bacteriaCountStat">0</div><div class="stat-label">Toplam Bakteri</div></div>
+                    <div class="stat-card"><div class="stat-value" id="foodCountStat">0</div><div class="stat-label">Yiyecek Parçacığı</div></div>
+                    <div class="stat-card"><div class="stat-value" id="currentGenerationStat">0</div><div class="stat-label">Maks. Jenerasyon</div></div>
+                    <div class="stat-card"><div class="stat-value" id="avgFitness">0.00</div><div class="stat-label">Ort. Fitness</div></div>
+                    <div class="stat-card"><div class="stat-value" id="avgEnergy">0.0</div><div class="stat-label">Ort. Enerji</div></div>
+                    <div class="stat-card"><div class="stat-value" id="geneticDiversityPi">0.000</div><div class="stat-label">Nük. Çeşitlilik (π)</div></div>
+                    <div class="stat-card"><div class="stat-value" id="tajimasD">0.00</div><div class="stat-label">Tajima's D</div></div>
+                </div>
+            </section>
+            
+            <!-- Tabs Container -->
+            <div class="tabs-container panel">
+                <nav class="tab-navigation">
+                    <button class="tab-button active" data-tab="chartsTab"><i class="fas fa-chart-line"></i> Grafikler</button>
+                    <button class="tab-button" data-tab="settingsTab"><i class="fas fa-sliders-h"></i> Ayarlar</button>
+                    <button class="tab-button" data-tab="tabpfnTab"><i class="fas fa-brain"></i> TabPFN Analizi</button>
+                </nav>
+
+                <div id="chartsTab" class="tab-content active">
+                    <h3 class="section-title chart-section-title"><i class="fas fa-chart-area"></i> Detaylı Analiz Grafikleri</h3>
+                    <div class="charts-grid" id="chartsGrid">
+                        <div class="chart-container"><h3 class="chart-title">Popülasyon Sayısı</h3><div id="populationChart" class="plotly-chart-div"></div></div>
+                        <div class="chart-container"><h3 class="chart-title">Ortalama Fitness</h3><div id="fitnessChart" class="plotly-chart-div"></div></div>
+                        <div class="chart-container"><h3 class="chart-title">Ortalama Enerji</h3><div id="energyChart" class="plotly-chart-div"></div></div>
+                        <div class="chart-container"><h3 class="chart-title">Nükleotid Çeşitliliği (π)</h3><div id="diversityPiChart" class="plotly-chart-div"></div></div>
+                        <div class="chart-container"><h3 class="chart-title">Tajima's D</h3><div id="tajimasDChart" class="plotly-chart-div"></div></div>
+                        <div class="chart-container"><h3 class="chart-title">ATP Seviyesi (Ort.)</h3><div id="atpChart" class="plotly-chart-div"></div></div>
+                        <div class="chart-container"><h3 class="chart-title">Sıcaklık Değişimi</h3><div id="temperatureChart" class="plotly-chart-div"></div></div>
+                        <div class="chart-container"><h3 class="chart-title">Besin Bulunabilirliği</h3><div id="nutrientAvailabilityChart" class="plotly-chart-div"></div></div>
+                    </div>
+                </div>
+
+                <div id="settingsTab" class="tab-content">
+                     <h3 class="section-title params-section-title"><i class="fas fa-cogs"></i> Simülasyon Parametreleri</h3>
+                    <div id="simulationParamsForm" class="params-form-grid">
+                        <div class="input-group">
+                            <label for="paramTemperature">Sıcaklık (K):</label>
+                            <input type="number" id="paramTemperature" name="temperature" step="0.1" class="param-input">
+                        </div>
+                        <div class="input-group">
+                            <label for="paramNutrient">Besin Bulunabilirliği (%):</label>
+                            <input type="number" id="paramNutrient" name="nutrient_availability" step="1" min="0" max="100" class="param-input">
+                        </div>
+                        <div class="input-group">
+                            <label for="paramMutationRate">Mutasyon Oranı (örn: 1e-6):</label>
+                            <input type="text" id="paramMutationRate" name="mutation_rate" class="param-input">
+                        </div>
+                        <div class="input-group">
+                            <label for="paramRecombinationRate">Rekombinasyon Oranı (örn: 1e-7):</label>
+                            <input type="text" id="paramRecombinationRate" name="recombination_rate" class="param-input">
+                        </div>
+                        <div class="input-group">
+                            <label for="paramTabpfnInterval">TabPFN Analiz Aralığı (adım):</label>
+                            <input type="number" id="paramTabpfnInterval" name="tabpfn_analysis_interval" step="10" min="10" class="param-input">
+                        </div>
+                        <div class="input-group">
+                            <label for="paramTabpfnBatchSize">TabPFN Batch Büyüklüğü:</label>
+                            <input type="number" id="paramTabpfnBatchSize" name="tabpfn_batch_size" step="1" min="5" class="param-input">
+                        </div>
+                    </div>
+                    <button id="saveParamsBtn" class="btn" style="margin-top: 20px;"><i class="fas fa-save"></i> Ayarları Kaydet ve Uygula</button>
+                </div>
+
+                <div id="tabpfnTab" class="tab-content">
+                    <div class="tabpfn-analysis-panel">
+                        <h3 class="section-title tabpfn-section-title">
+                            <i class="fas fa-microchip"></i> TabPFN Analiz Yorumları
+                        </h3>
+                        <div id="tabpfn-analysis-content">
+                            <p>TabPFN analiz verileri burada gösterilecektir...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Bacterium Details Modal -->
+    <div id="bacteriumModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModalBtn">&times;</span>
+            <h3 style="color: var(--accent); margin-bottom: 20px; font-size:20px;"><i class="fas fa-bacteria"></i> Bakteri Detayları</h3>
+            <div id="bacteriumDetails" style="font-size:14px; max-height: 70vh; overflow-y:auto;">Yükleniyor...</div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts -->
+    <div class="keyboard-shortcuts">
+        <div><strong>Kısayollar:</strong> [Space]: Duraklat/Devam | [S]: Başlat | [Q]: Durdur | [A]: Bakteri Ekle</div>
+    </div>
+
+    <script>
+        // Global State & Configuration
+        const AppState = {
+            isRunning: false,
+            isPaused: false,
+            socket: null,
+            simDataCache: {
+                time: [], population: [], avg_fitness: [], avg_energy: [],
+                diversity_pi: [], tajimas_d: [], avg_atp: [],
+                temperature: [], nutrient_availability: []
+            },
+            MAX_DATA_POINTS: 100,
+            API_BASE_URL: '',
+            lastBacteriaCount: 0,
+            warningShown: false,
+        };
+
+        // DOM Element Selectors
+        const DOM = {
+            el: (id) => document.getElementById(id),
+            query: (selector) => document.querySelector(selector),
+            queryAll: (selector) => document.querySelectorAll(selector),
+            connectionStatus: () => DOM.el('connectionStatus'),
+            simulationStatus: () => DOM.el('simulationStatus'),
+            fpsDisplay: () => DOM.el('fpsDisplay'),
+            stepDisplay: () => DOM.el('stepDisplay'),
+            startBtn: () => DOM.el('startBtn'),
+            pauseBtn: () => DOM.el('pauseBtn'),
+            stopBtn: () => DOM.el('stopBtn'),
+            addBacteriaBtn: () => DOM.el('addBacteriaBtn'),
+            exportDataBtn: () => DOM.el('exportDataBtn'),
+            aiAnalysisBtn: () => DOM.el('aiAnalysisBtn'),
+            triggerTabpfnBtn: () => DOM.el('triggerTabpfnBtn'),
+            analyzeTabpfnResultsBtn: () => DOM.el('analyzeTabpfnResultsBtn'),
+            bacteriaCountInput: () => DOM.el('bacteriaCount'),
+            aiQuestionInput: () => DOM.el('aiQuestionInput'),
+            askAiBtn: () => DOM.el('askAiBtn'),
+            aiResponse: () => DOM.el('aiResponse'),
+            ngrokStartBtn: () => DOM.el('ngrokStartBtn'),
+            ngrokStopBtn: () => DOM.el('ngrokStopBtn'),
+            ngrokUrlDiv: () => DOM.el('ngrokUrl'),
+            ngrokLink: () => DOM.el('ngrokLink'),
+            simulationCanvas: () => DOM.el('simulationCanvas'),
+            bacteriaCountStat: () => DOM.el('bacteriaCountStat'),
+            foodCountStat: () => DOM.el('foodCountStat'),
+            currentGenerationStat: () => DOM.el('currentGenerationStat'),
+            avgFitnessStat: () => DOM.el('avgFitness'),
+            avgEnergyStat: () => DOM.el('avgEnergy'),
+            geneticDiversityPiStat: () => DOM.el('geneticDiversityPi'),
+            tajimasDStat: () => DOM.el('tajimasD'),
+            populationChart: () => DOM.el('populationChart'),
+            fitnessChart: () => DOM.el('fitnessChart'),
+            energyChart: () => DOM.el('energyChart'),
+            diversityPiChart: () => DOM.el('diversityPiChart'),
+            tajimasDChart: () => DOM.el('tajimasDChart'),
+            atpChart: () => DOM.el('atpChart'),
+            temperatureChart: () => DOM.el('temperatureChart'),
+            nutrientAvailabilityChart: () => DOM.el('nutrientAvailabilityChart'),
+            paramTemperature: () => DOM.el('paramTemperature'),
+            paramNutrient: () => DOM.el('paramNutrient'),
+            paramMutationRate: () => DOM.el('paramMutationRate'),
+            paramRecombinationRate: () => DOM.el('paramRecombinationRate'),
+            paramTabpfnInterval: () => DOM.el('paramTabpfnInterval'),
+            paramTabpfnBatchSize: () => DOM.el('paramTabpfnBatchSize'),
+            saveParamsBtn: () => DOM.el('saveParamsBtn'),
+            tabpfnAnalysisContent: () => DOM.el('tabpfn-analysis-content'),
+            bacteriumModal: () => DOM.el('bacteriumModal'),
+            bacteriumDetails: () => DOM.el('bacteriumDetails'),
+            closeModalBtn: () => DOM.el('closeModalBtn'),
+            tabButtons: () => DOM.queryAll('.tab-button'),
+            tabContents: () => DOM.queryAll('.tab-content'),
+        };
+
+        // API Service
+        const ApiService = {
+            fetchApi: async (endpoint, method = 'GET', body = null) => {
+                try {
+                    const options = {
+                        method,
+                        headers: {}
+                    };
+                    if (body) {
+                        options.headers['Content-Type'] = 'application/json';
+                        options.body = JSON.stringify(body);
+                    }
+                    const response = await fetch(`${AppState.API_BASE_URL}/api${endpoint}`, options);
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+                        throw new Error(`API Error ${response.status}: ${errorData.message || 'Unknown error'}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error(`❌ API call ${endpoint} failed:`, error);
+                    UI.showToast(`API ile iletişimde sorun: ${error.message}`, 'error');
+                    if (endpoint !== '/simulation_data') {
+                        UI.updateConnectionStatus(false);
+                    }
+                    throw error;
+                }
+            }
+        };
+
+        // UI Update Service
+        const UI = {
+            updateConnectionStatus: (connected) => {
+                const statusEl = DOM.connectionStatus().querySelector('span');
+                const iconEl = DOM.connectionStatus().querySelector('i');
+                if (connected) {
+                    statusEl.textContent = 'BAĞLI';
+                    DOM.connectionStatus().className = 'connection-status connected';
+                    iconEl.className = 'fas fa-wifi';
+                } else {
+                    statusEl.textContent = 'BAĞLANTI YOK';
+                    DOM.connectionStatus().className = 'connection-status disconnected';
+                    iconEl.className = 'fas fa-exclamation-triangle';
+                }
+            },
+            updateSimulationStatusDisplay: () => {
+                const statusEl = DOM.simulationStatus();
+                const statusText = statusEl.querySelector('span');
+                const statusIcon = statusEl.querySelector('i');
+
+                const startBtn = DOM.startBtn();
+                const pauseBtn = DOM.pauseBtn();
+                const stopBtn = DOM.stopBtn();
+                const addBacteriaBtn = DOM.addBacteriaBtn();
+
+                if (AppState.isRunning) {
+                    statusText.textContent = AppState.isPaused ? 'DURAKLATILDI' : 'ÇALIŞIYOR';
+                    statusEl.className = `status-pill ${AppState.isPaused ? 'status-paused' : 'status-running'}`;
+                    statusIcon.className = AppState.isPaused ? 'fas fa-pause-circle' : 'fas fa-cogs fa-spin';
+                    startBtn.disabled = true;
+                    pauseBtn.disabled = false;
+                    pauseBtn.innerHTML = AppState.isPaused ? '<i class="fas fa-play"></i> Devam Et' : '<i class="fas fa-pause"></i> Duraklat';
+                    stopBtn.disabled = false;
+                    addBacteriaBtn.disabled = false;
+                } else {
+                    statusText.textContent = 'DURDU';
+                    statusEl.className = 'status-pill status-stopped';
+                    statusIcon.className = 'fas fa-power-off';
+                    startBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                    pauseBtn.innerHTML = '<i class="fas fa-pause"></i> Duraklat';
+                    stopBtn.disabled = true;
+                    addBacteriaBtn.disabled = true;
+                }
+            },
+            updateLiveStatistics: (data) => {
+                if (!data) return;
+                if (data.bacteria_count !== undefined) DOM.bacteriaCountStat().textContent = data.bacteria_count;
+                if (data.food_count !== undefined) DOM.foodCountStat().textContent = data.food_count;
+                if (data.current_generation !== undefined) DOM.currentGenerationStat().textContent = data.current_generation;
+                if (data.avg_fitness !== undefined) DOM.avgFitnessStat().textContent = data.avg_fitness.toFixed(2);
+                if (data.avg_energy !== undefined) DOM.avgEnergyStat().textContent = data.avg_energy.toFixed(1);
+                if (data.genetic_diversity_pi !== undefined) DOM.geneticDiversityPiStat().textContent = data.genetic_diversity_pi.toFixed(3);
+                if (data.tajimas_d !== undefined) DOM.tajimasDStat().textContent = data.tajimas_d.toFixed(2);
+                if (data.time_step !== undefined) DOM.stepDisplay().textContent = data.time_step;
+                if (data.fps !== undefined) DOM.fpsDisplay().textContent = data.fps.toFixed(1);
+            },
+            clearCanvasAndData: () => {
+                DOM.simulationCanvas().innerHTML = '<div class="loading">Simülasyon başlatılmayı bekliyor...</div>';
+                AppState.simDataCache = { time: [], population: [], avg_fitness: [], avg_energy: [], diversity_pi: [], tajimas_d: [], avg_atp: [], temperature: [], nutrient_availability: [] };
+                
+                const chartIds = ['populationChart', 'fitnessChart', 'energyChart', 'diversityPiChart', 'tajimasDChart', 'atpChart', 'temperatureChart', 'nutrientAvailabilityChart'];
+                chartIds.forEach(id => {
+                    const chartDiv = DOM.el(id);
+                    if (chartDiv && Plotly) Plotly.purge(chartDiv);
+                });
+                UI.updateLiveStatistics({
+                    bacteria_count: 0, food_count: 0, current_generation: 0,
+                    avg_fitness: 0, avg_energy: 0, genetic_diversity_pi: 0, tajimas_d: 0,
+                    time_step: 0, fps: 0
+                });
+            },
+            updateSimulationParameterInputs: (params) => {
+                if (!params) return;
+                DOM.paramTemperature().value = params.temperature !== undefined ? params.temperature.toFixed(1) : '';
+                DOM.paramNutrient().value = params.nutrient_availability !== undefined ? params.nutrient_availability.toFixed(0) : '';
+                DOM.paramMutationRate().value = params.mutation_rate !== undefined ? params.mutation_rate.toExponential(1) : '';
+                DOM.paramRecombinationRate().value = params.recombination_rate !== undefined ? params.recombination_rate.toExponential(1) : '';
+                DOM.paramTabpfnInterval().value = params.tabpfn_analysis_interval !== undefined ? params.tabpfn_analysis_interval : '';
+                DOM.paramTabpfnBatchSize().value = params.tabpfn_batch_size !== undefined ? params.tabpfn_batch_size : '';
+            },
+            showToast: (message, type = 'success', duration = 3000) => {
+                const toast = document.createElement('div');
+                toast.className = `toast-notification ${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                requestAnimationFrame(() => {
+                    toast.classList.add('show');
+                });
+
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    toast.addEventListener('transitionend', () => toast.remove());
+                }, duration);
+            },
+             openModal: (modalId) => {
+                const modal = DOM.el(modalId);
+                if (modal) modal.classList.add('active');
+            },
+            closeModal: (modalId) => {
+                const modal = DOM.el(modalId);
+                if (modal) modal.classList.remove('active');
+            }
+        };
+
+        // HTTP Polling (Fallback System)
+        const PollingService = {
+            intervalId: null,
+            start: () => {
+                if (PollingService.intervalId) clearInterval(PollingService.intervalId);
+                PollingService.intervalId = setInterval(async () => {
+                    try {
+                        const data = await ApiService.fetchApi('/data');
+                        SimulationService.updateDashboard(data);
+                        UI.updateConnectionStatus(true);
+                    } catch (error) {
+                        console.error('Polling error:', error);
+                        UI.updateConnectionStatus(false);
+                    }
+                }, 500); // 500ms polling
+            },
+            stop: () => {
+                if (PollingService.intervalId) {
+                    clearInterval(PollingService.intervalId);
+                    PollingService.intervalId = null;
+                }
+            }
+        };
+
+        // Canvas Service
+        const CanvasService = {
+            updateCanvas: (data) => {
+                const canvas = DOM.simulationCanvas();
+                const canvasRect = canvas.getBoundingClientRect();
+
+                Array.from(canvas.children).forEach(child => {
+                    if (child.classList.contains('bacterium') || child.classList.contains('food')) {
+                        canvas.removeChild(child);
+                    }
+                });
+
+                if (data.bacteria_sample && data.bacteria_sample.length > 0) {
+                    const loadingMsg = canvas.querySelector('.loading');
+                    if (loadingMsg) canvas.removeChild(loadingMsg);
+                }
+
+                if (!data.bacteria_sample || data.bacteria_sample.length === 0) {
+                    if (!canvas.querySelector('.loading') && !AppState.isRunning) {
+                        const loading = document.createElement('div');
+                        loading.className = 'loading';
+                        loading.textContent = 'Simülasyon başlatılmayı bekliyor...';
+                        canvas.appendChild(loading);
+                    } else if (!canvas.querySelector('.loading') && AppState.isRunning) {
+                         const loading = document.createElement('div');
+                        loading.className = 'loading';
+                        loading.textContent = 'Veri bekleniyor veya bakteri yok...';
+                        canvas.appendChild(loading);
+                    }
+                    return;
+                }
+
+                const worldWidth = data.world_dimensions ? data.world_dimensions[0] : 100;
+                const worldHeight = data.world_dimensions ? data.world_dimensions[1] : 100;
+
+                data.bacteria_sample.forEach((b) => {
+                    const bacteriumEl = document.createElement('div');
+                    let bacClass = 'basic';
+                    const fitness = b.current_fitness_calculated || 0;
+                    if (fitness > 0.85) bacClass = 'elite';
+                    else if (fitness > 0.7) bacClass = 'veteran';
+                    else if (fitness > 0.55) bacClass = 'strong';
+                    else if (b.energy_level > 70) bacClass = 'energetic';
+                    else if (b.age < 50) bacClass = 'young';
+                    bacteriumEl.className = `bacterium ${bacClass}`;
+                    
+                    const posX = (b.position[0] / worldWidth) * canvasRect.width;
+                    const posY = (b.position[1] / worldHeight) * canvasRect.height;
+                    const displaySize = Math.max(5, (b.size || 0.5) * 5 + 5);
+
+                    bacteriumEl.style.left = `${Math.max(0, Math.min(posX, canvasRect.width - displaySize))}px`;
+                    bacteriumEl.style.top = `${Math.max(0, Math.min(posY, canvasRect.height - displaySize))}px`;
+                    bacteriumEl.style.width = `${displaySize}px`;
+                    bacteriumEl.style.height = `${displaySize}px`;
+                    
+                    bacteriumEl.dataset.id = b.id;
+                    bacteriumEl.addEventListener('click', () => SimulationService.showBacteriumDetails(b));
+                    canvas.appendChild(bacteriumEl);
+                });
+
+                if (data.food_sample) {
+                    data.food_sample.forEach(food => {
+                        const foodEl = document.createElement('div');
+                        foodEl.className = 'food';
+                        const foodPosX = (food.position[0] / worldWidth) * canvasRect.width;
+                        const foodPosY = (food.position[1] / worldHeight) * canvasRect.height;
+                        const foodDisplaySize = Math.max(3, (food.size || 0.2) * 10);
+                        
+                        foodEl.style.left = `${Math.max(0, Math.min(foodPosX, canvasRect.width - foodDisplaySize))}px`;
+                        foodEl.style.top = `${Math.max(0, Math.min(foodPosY, canvasRect.height - foodDisplaySize))}px`;
+                        foodEl.style.width = `${foodDisplaySize}px`;
+                        foodEl.style.height = `${foodDisplaySize}px`;
+                        canvas.appendChild(foodEl);
+                    });
+                }
+            }
+        };
+        
+        // Chart Service
+        const ChartService = {
+            initializeEmptyCharts: () => {
+                const emptyData = [{ x: [], y: [], type: 'scatter', mode: 'lines' }];
+                const chartLayout = (yaxisTitle = '', yaxisRange = null) => ({ 
+                    margin: { t: 30, r: 20, b: 50, l: 60 }, paper_bgcolor: 'transparent', plot_bgcolor: 'rgba(255,255,255,0.03)', font: { color: '#e2e8f0', size:11 }, 
+                    xaxis: { title: 'Simülasyon Adımı', showgrid: true, gridcolor: 'rgba(255,255,255,0.1)', zeroline:false }, 
+                    yaxis: { title: {text: yaxisTitle, font: {size:12}}, showgrid: true, gridcolor: 'rgba(255,255,255,0.1)', zeroline:false, range: yaxisRange }
+                });
+                
+                const chartConfigs = [
+                    {id: 'populationChart', title: 'Bakteri Sayısı', dataEl: DOM.populationChart()},
+                    {id: 'fitnessChart', title: 'Ort. Fitness', range: [0,1], dataEl: DOM.fitnessChart()},
+                    {id: 'energyChart', title: 'Ort. Enerji', dataEl: DOM.energyChart()},
+                    {id: 'diversityPiChart', title: 'Nükleotid Çeşitliliği (π)', dataEl: DOM.diversityPiChart()},
+                    {id: 'tajimasDChart', title: "Tajima's D", dataEl: DOM.tajimasDChart()},
+                    {id: 'atpChart', title: 'Ort. ATP Seviyesi', dataEl: DOM.atpChart()},
+                    {id: 'temperatureChart', title: 'Sıcaklık (K)', dataEl: DOM.temperatureChart()},
+                    {id: 'nutrientAvailabilityChart', title: 'Besin Bulunabilirliği (%)', range: [0,100], dataEl: DOM.nutrientAvailabilityChart()}
+                ];
+
+                chartConfigs.forEach(chart => {
+                    if (chart.dataEl && Plotly) {
+                        try {
+                            Plotly.react(chart.dataEl, emptyData, chartLayout(chart.title, chart.range));
+                        } catch(e) {
+                            console.error(`Error initializing chart ${chart.id}:`, e);
+                        }
+                    }
+                });
+            }
+        };
+
+        // Simulation Control & Data Service
+        const SimulationService = {
+            start: async () => {
+                const bacteriaCount = parseInt(DOM.bacteriaCountInput().value);
+                if (isNaN(bacteriaCount) || bacteriaCount <= 0) {
+                    UI.showToast("Lütfen geçerli bir bakteri sayısı girin.", "warning");
+                    return;
+                }
+                try {
+                    const result = await ApiService.fetchApi('/start', 'POST', { initial_bacteria_count: bacteriaCount });
+                    if (result.status === 'success' || result.message.includes("başlatıldı")) {
+                        AppState.isRunning = true; AppState.isPaused = false; UI.updateSimulationStatusDisplay();
+                        console.log('✅ Simülasyon başlatıldı:', result.message);
+                        DOM.simulationCanvas().innerHTML = '<div class="loading">Simülasyon verileri yükleniyor...</div>';
+                        PollingService.start(); // Start polling for data
+                    } else {
+                        console.error('❌ Simülasyon başlatılamadı:', result.message);
+                        UI.showToast('Simülasyon başlatılamadı: ' + result.message, 'error');
+                    }
+                } catch (error) { /* Handled by fetchApi */ }
+            },
+            pauseResume: async () => {
+                if (!AppState.isRunning) return;
+                const endpoint = AppState.isPaused ? '/start' : '/pause';
+                try {
+                    const result = await ApiService.fetchApi(endpoint, 'POST');
+                    if (result.status === 'success' || result.message) {
+                        AppState.isPaused = !AppState.isPaused;
+                        UI.updateSimulationStatusDisplay();
+                        console.log(`⏯️ Simülasyon ${AppState.isPaused ? 'duraklatıldı' : 'devam ettirildi'}. Mesaj: ${result.message}`);
+                        UI.showToast(`Simülasyon ${AppState.isPaused ? 'duraklatıldı' : 'devam ettirildi'}.`, 'info');
+                    }
+                } catch (error) { /* Handled by fetchApi */ }
+            },
+            stop: async () => {
+                try {
+                    const result = await ApiService.fetchApi('/stop', 'POST');
+                    if (result.status === 'success' || result.message.includes("durduruldu")) {
+                        AppState.isRunning = false; AppState.isPaused = false; 
+                        UI.updateSimulationStatusDisplay(); 
+                        UI.clearCanvasAndData();
+                        PollingService.stop(); // Stop polling
+                        console.log('⏹️ Simülasyon durduruldu.');
+                        UI.showToast('Simülasyon durduruldu.', 'info');
+                    }
+                } catch (error) { /* Handled by fetchApi */ }
+            },
+            addBacteria: async () => {
+                if (!AppState.isRunning) {
+                    UI.showToast("Lütfen önce simülasyonu başlatın.", "warning");
+                    return;
+                }
+                try {
+                    const result = await ApiService.fetchApi('/add_bacteria', 'POST', { count: 10 });
+                    console.log('➕ Bakteri eklendi:', result.message);
+                    if (result.status === 'success') {
+                         UI.showToast(`✅ ${result.message}`, 'success');
+                    }
+                } catch (error) { /* Handled by fetchApi */ }
+            },
+            exportData: async () => {
+                try {
+                    const dataToExport = await ApiService.fetchApi('/export');
+                    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `neomag_v7_data_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    console.log('💾 Veri dışa aktarıldı.');
+                    UI.showToast('Veri başarıyla dışa aktarıldı.', 'success');
+                } catch (error) { console.error('❌ Veri dışa aktarma hatası:', error); }
+            },
+            showBacteriumDetails: (bacteriumData) => {
+                const detailsEl = DOM.bacteriumDetails();
+                if (!bacteriumData) {
+                    detailsEl.innerHTML = "<p>Detaylar yüklenemedi.</p>";
+                    UI.openModal('bacteriumModal');
+                    return;
+                }
+                let html = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">`;
+                html += `<div><h4 style="color: var(--accent); margin-bottom: 10px;">Temel Bilgiler</h4>
+                         <p><strong><i class="fas fa-id-card"></i> ID:</strong> ${bacteriumData.id}</p>
+                         <p><strong><i class="fas fa-map-marker-alt"></i> Konum:</strong> 
+                            ${bacteriumData.position ? `${bacteriumData.position[0].toFixed(1)}, ${bacteriumData.position[1].toFixed(1)}` : 'N/A'}
+                         </p>
+                         <p><strong><i class="fas fa-bolt"></i> Enerji:</strong> ${bacteriumData.energy_level?.toFixed(2) || 'N/A'}</p>
+                         <p><strong><i class="fas fa-hourglass-half"></i> Yaş:</strong> ${bacteriumData.age?.toFixed(1) || 'N/A'}</p>
+                         <p><strong><i class="fas fa-layer-group"></i> Jenerasyon:</strong> ${bacteriumData.generation || 'N/A'}</p>
+                         </div>`;
+                html += `</div>`;
+                detailsEl.innerHTML = html;
+                UI.openModal('bacteriumModal');
+            },
+            updateDashboard: (data) => {
+                if (!data) { console.warn("Dashboard update: No data received"); return; }
+                UI.updateLiveStatistics(data); 
+                CanvasService.updateCanvas(data);
+            }
+        };
+
+        // Socket.IO Service (with fallback to HTTP polling)
+        const SocketService = {
+            initialize: () => {
+                console.log('🔌 Socket.IO bağlantısı kuruluyor...');
+                if (typeof io !== 'function') {
+                    console.warn('⚠️ Socket.IO mevcut değil, HTTP polling kullanılacak');
+                    DOM.connectionStatus().querySelector('span').textContent = 'HTTP POLLING';
+                    DOM.connectionStatus().className = 'connection-status connected';
+                    return;
+                }
+                try {
+                    AppState.socket = io();
+                    console.log('✅ Socket.IO client oluşturuldu');
+                } catch (error) {
+                    console.error('❌ Socket.IO initialization error:', error);
+                    DOM.connectionStatus().querySelector('span').textContent = 'HTTP POLLING';
+                    DOM.connectionStatus().className = 'connection-status connected';
+                    return;
+                }
+
+                AppState.socket.on('connect', () => {
+                    console.log('🔗 Sunucuya Socket.IO ile bağlandı');
+                    UI.updateConnectionStatus(true);
+                    PollingService.stop(); // Stop polling if socket connected
+                });
+                AppState.socket.on('disconnect', () => {
+                    console.log('❌ Sunucu Socket.IO bağlantısı kesildi, HTTP polling\'e geçiliyor');
+                    UI.updateConnectionStatus(false);
+                    PollingService.start(); // Start polling as fallback
+                });
+                AppState.socket.on('simulation_update', SimulationService.updateDashboard);
+                AppState.socket.on('simulation_stopped', () => {
+                    AppState.isRunning = false; AppState.isPaused = false; 
+                    UI.updateSimulationStatusDisplay(); 
+                    UI.clearCanvasAndData();
+                    console.log('Sunucudan simülasyon durduruldu bilgisi alındı.');
+                    UI.showToast('Simülasyon sunucu tarafından durduruldu.', 'info');
+                });
+            }
+        };
+        
+        // Application Initialization & Event Listeners
+        const App = {
+            initialize: () => {
+                console.log('🚀 NeoMag V7 Uygulaması başlatılıyor... (v PROFESSIONAL)');
+                
+                SocketService.initialize();
+                App.setupEventListeners();
+                ChartService.initializeEmptyCharts();
+                UI.updateSimulationStatusDisplay();
+                App.setupTabNavigation();
+
+                console.log('✅ Uygulama başarıyla başlatıldı.');
+                 UI.showToast('NeoMag V7 Profesyonel Arayüzü Yüklendi!', 'info', 1500);
+            },
+            setupEventListeners: () => {
+                console.log('🎯 Event listener\'lar kuruluyor...');
+                DOM.startBtn().addEventListener('click', SimulationService.start);
+                DOM.pauseBtn().addEventListener('click', SimulationService.pauseResume);
+                DOM.stopBtn().addEventListener('click', SimulationService.stop);
+                DOM.addBacteriaBtn().addEventListener('click', SimulationService.addBacteria);
+                DOM.exportDataBtn().addEventListener('click', SimulationService.exportData);
+                
+                // Modal controls
+                DOM.closeModalBtn().addEventListener('click', () => UI.closeModal('bacteriumModal'));
+                window.addEventListener('click', (event) => {
+                    if (event.target === DOM.bacteriumModal()) UI.closeModal('bacteriumModal');
+                });
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+                    switch(e.code) {
+                        case 'Space': e.preventDefault(); SimulationService.pauseResume(); break;
+                        case 'KeyS': if(!AppState.isRunning) SimulationService.start(); break;
+                        case 'KeyQ': if(AppState.isRunning) SimulationService.stop(); break;
+                        case 'KeyA': if(AppState.isRunning) SimulationService.addBacteria(); break;
+                    }
+                });
+            },
+            setupTabNavigation: () => {
+                DOM.tabButtons().forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tabId = button.dataset.tab;
+
+                        DOM.tabButtons().forEach(btn => btn.classList.remove('active'));
+                        DOM.tabContents().forEach(content => content.classList.remove('active'));
+
+                        button.classList.add('active');
+                        DOM.el(tabId).classList.add('active');
+                        
+                        if (tabId === 'chartsTab' && Plotly) {
+                            setTimeout(() => {
+                                DOM.queryAll('.plotly-chart-div').forEach(chartDiv => {
+                                    if(chartDiv._fullLayout) {
+                                         Plotly.Plots.resize(chartDiv);
+                                    }
+                                });
+                                console.log("Relayout charts on tab switch");
+                            }, 50);
+                        }
+                    });
+                });
+            }
+        };
+
+        // Start the Application
+        document.addEventListener('DOMContentLoaded', App.initialize);
+    </script>
+</body>
+</html>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div class="logo">🧬 NeoMag V7</div>
+            <div class="status-bar">
+                <div class="status-pill">
+                    <i class="fas fa-power-off"></i>
+                    <span id="connection-status">Connecting...</span>
+                </div>
+            </div>
+        </header>
+        <aside class="sidebar">
+            <h2>NeoMag V7</h2>
+            <nav>
+                <a href="#">Home</a>
+                <a href="#">Experiments</a>
+                <a href="#">Analysis</a>
+                <a href="#">Settings</a>
+            </nav>
+        </aside>
+        <main class="main-area">
+            <section class="simulation-panel">
+                <h2>Simulation</h2>
+                <div class="canvas"></div>
+            </section>
+            <section class="stats-panel">
+                <h2>Statistics</h2>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3 class="chart-title">Bacteria Growth</h3>
+                        <div class="plotly-chart-div"></div>
+                    </div>
+                    <div class="chart-container">
+                        <h3 class="chart-title">Food Distribution</h3>
+                        <div class="plotly-chart-div"></div>
+                    </div>
+                </div>
+            </section>
+            <section class="tabs-container">
+                <div class="tab-navigation">
+                    <button class="tab-button active" data-tab="simulation">Simulation</button>
+                    <button class="tab-button" data-tab="stats">Statistics</button>
+                </div>
+                <div class="tab-content active" id="simulation-tab">
+                    <h3>Simulation Settings</h3>
+                    <form class="params-form-grid">
+                        <div class="input-group">
+                            <label for="bacteria-count">Bacteria Count</label>
+                            <input type="number" id="bacteria-count" min="1" max="1000" value="100">
+                        </div>
+                        <div class="input-group">
+                            <label for="food-count">Food Count</label>
+                            <input type="number" id="food-count" min="1" max="1000" value="100">
+                        </div>
+                        <div class="input-group">
+                            <label for="simulation-duration">Simulation Duration</label>
+                            <input type="number" id="simulation-duration" min="1" max="1000" value="100">
+                        </div>
+                        <div class="input-group">
+                            <label for="mutation-rate">Mutation Rate</label>
+                            <input type="number" id="mutation-rate" min="0.01" max="0.1" step="0.01" value="0.05">
+                        </div>
+                        <div class="input-group">
+                            <label for="mutation-type">Mutation Type</label>
+                            <select id="mutation-type">
+                                <option value="random">Random</option>
+                                <option value="elite">Elite</option>
+                                <option value="veteran">Veteran</option>
+                                <option value="strong">Strong</option>
+                                <option value="energetic">Energetic</option>
+                                <option value="young">Young</option>
+                                <option value="basic">Basic</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="tab-content" id="stats-tab">
+                    <h3>Statistics</h3>
+                    <div class="stat-card">
+                        <h4>Total Bacteria</h4>
+                        <p class="stat-value">0</p>
+                        <p class="stat-label">Count</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Average Fitness</h4>
+                        <p class="stat-value">0.00</p>
+                        <p class="stat-label">Score</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Food Consumed</h4>
+                        <p class="stat-value">0</p>
+                        <p class="stat-label">Units</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div class="modal">
+        <div class="modal-content">
+            <h2>Simulation Complete</h2>
+            <p>Your simulation has completed successfully!</p>
+            <button class="btn btn-info">View Results</button>
+            <button class="btn btn-danger close">Close</button>
+        </div>
+    </div>
+    <div class="keyboard-shortcuts">
+        <strong>Keyboard Shortcuts</strong>
+        <p>Ctrl + S: Start Simulation</p>
+        <p>Ctrl + P: Pause Simulation</p>
+        <p>Ctrl + R: Reset Simulation</p>
+    </div>
+    <div class="loading">
+        <p>Loading...</p>
+    </div>
+    <div class="toast-notification">
+        <p>Notification message will appear here</p>
+    </div>
+    <script>
+        // JavaScript code will be added here
+    </script>
+</body>
+</html> 

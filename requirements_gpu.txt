@@ -1,0 +1,58 @@
+# NeoMag V7 - GPU Hızlandırma Gereksinimleri (RTX 3060 Optimize)
+# Kurulum: pip install -r requirements_gpu.txt
+
+# Core Dependencies
+Flask==3.0.3
+Flask-SocketIO==5.3.5
+Flask-CORS==4.0.0
+numpy==1.24.3
+pandas==2.0.3
+scipy==1.11.1
+
+# GPU Computing Stack
+torch==2.3.1+cu121 --index-url https://download.pytorch.org/whl/cu121
+torchvision==0.18.1+cu121 --index-url https://download.pytorch.org/whl/cu121
+torchaudio==2.3.1+cu121 --index-url https://download.pytorch.org/whl/cu121
+
+# CUDA Acceleration Libraries
+cupy-cuda12x==13.2.0         # CuPy for CUDA 12.x (RTX 3060 compatible)
+numba==0.59.1                # CUDA JIT compilation
+numba-cuda==0.0.13           # Numba CUDA support
+
+# TabPFN & ML
+tabpfn==2.0.9                # TabPFN 2.0 with GPU support
+
+# Scientific Computing
+scikit-learn==1.3.0
+matplotlib==3.7.2
+seaborn==0.12.2
+
+# Web & Networking
+requests==2.31.0
+python-socketio==5.8.0
+eventlet==0.33.3
+gunicorn==21.2.0
+
+# AI Integration
+google-generativeai==0.7.2
+
+# System & Development
+psutil==5.9.5                # System monitoring
+python-dotenv==1.0.0        # Environment variables
+
+# Optional GPU Utilities
+pynvml==11.5.0               # NVIDIA GPU monitoring
+GPUtil==1.4.0                # GPU utilities
+
+# Development & Testing
+pytest==7.4.0
+black==23.7.0
+flake8==6.0.0
+
+# WebGPU (Experimental)
+# wgpu==0.15.1               # WebGPU for browser acceleration (optional)
+
+# CUDA Compatibility Check
+# Bu requirements RTX 3060 ve CUDA 12.1+ için optimize edilmiştir
+# RTX 3060 Specs: 8GB VRAM, 3584 CUDA Cores, Compute Capability 8.6
+# Minimum system: Windows 10/11, Python 3.10+, 16GB RAM önerilir 

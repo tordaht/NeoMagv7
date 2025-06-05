@@ -1,0 +1,183 @@
+{
+  "modules": {
+    "molecular_dynamics_engine": {
+      "status": "SUCCESS",
+      "classes": [
+        "AtomicPosition",
+        "MolecularDynamicsEngine"
+      ],
+      "functions": [
+        "test_molecular_dynamics"
+      ],
+      "total_members": 3
+    },
+    "population_genetics_engine": {
+      "status": "SUCCESS",
+      "classes": [
+        "Allele",
+        "CoalescentTheory",
+        "FitnessLandscape",
+        "Population",
+        "SelectionType",
+        "WrightFisherModel"
+      ],
+      "functions": [
+        "test_population_genetics"
+      ],
+      "total_members": 7
+    },
+    "reinforcement_learning_engine": {
+      "status": "SUCCESS",
+      "classes": [
+        "Action",
+        "ActionType",
+        "DQNAgent",
+        "EcosystemManager",
+        "EcosystemState",
+        "EnvironmentState",
+        "Reward"
+      ],
+      "functions": [
+        "test_reinforcement_learning"
+      ],
+      "total_members": 8
+    },
+    "advanced_bacterium_v7": {
+      "status": "SUCCESS",
+      "classes": [
+        "AdvancedBacteriumV7",
+        "BacteriumState",
+        "BiophysicalProperties",
+        "GeneticProfile",
+        "MetabolicPathway"
+      ],
+      "functions": [
+        "test_advanced_bacterium"
+      ],
+      "total_members": 6
+    },
+    "web_server": {
+      "status": "FAILED",
+      "error": "expected an indented block after 'except' statement on line 96 (web_server.py, line 97)",
+      "classes": [],
+      "functions": []
+    }
+  },
+  "functions": {
+    "molecular_dynamics_engine.MolecularDynamicsEngine": {
+      "status": "SUCCESS",
+      "instantiation_time": 0.0,
+      "methods": [
+        "calculate_electrostatic_force",
+        "calculate_forces",
+        "calculate_kinetic_energy",
+        "calculate_potential_energy",
+        "calculate_total_forces",
+        "calculate_van_der_waals_force",
+        "update_positions_verlet"
+      ],
+      "method_count": 7
+    },
+    "population_genetics_engine.WrightFisherModel": {
+      "status": "SUCCESS",
+      "instantiation_time": 0.0,
+      "methods": [
+        "apply_mutation",
+        "binomial_sampling",
+        "calculate_effective_population_size",
+        "calculate_heterozygosity",
+        "calculate_selection_fitness",
+        "hardy_weinberg_equilibrium",
+        "simulate_generation"
+      ],
+      "method_count": 7
+    },
+    "reinforcement_learning_engine.EcosystemManager": {
+      "status": "SUCCESS",
+      "instantiation_time": 0.0,
+      "methods": [
+        "action_to_ecosystem_action",
+        "evaluate_agent",
+        "train_agent"
+      ],
+      "method_count": 3
+    },
+    "advanced_bacterium_v7.AdvancedBacteriumV7": {
+      "status": "SUCCESS",
+      "instantiation_time": 0.0,
+      "methods": [
+        "attempt_reproduction",
+        "calculate_atp_synthesis",
+        "calculate_molecular_forces",
+        "calculate_stress_response",
+        "decide_action_ai",
+        "get_state_summary",
+        "metabolic_update",
+        "should_die",
+        "update_biophysics",
+        "update_genetics_wright_fisher"
+      ],
+      "method_count": 10
+    },
+    "web_server.NeoMagV7WebSimulation": {
+      "status": "FAILED - MODULE IMPORT"
+    }
+  },
+  "connections": {
+    "web_server.NeoMagV7WebSimulation.initialize_engines": {
+      "status": "BROKEN - MODULE FAILED"
+    },
+    "web_server.NeoMagV7WebSimulation.start_simulation": {
+      "status": "BROKEN - MODULE FAILED"
+    },
+    "molecular_dynamics_engine.MolecularDynamicsEngine.calculate_forces": {
+      "status": "CONNECTED",
+      "parameters": [
+        "self",
+        "positions"
+      ],
+      "parameter_count": 2
+    },
+    "population_genetics_engine.WrightFisherModel.simulate_generation": {
+      "status": "CONNECTED",
+      "parameters": [
+        "self",
+        "population",
+        "selection_type",
+        "selection_coefficient"
+      ],
+      "parameter_count": 4
+    },
+    "reinforcement_learning_engine.EcosystemManager.train_agent": {
+      "status": "CONNECTED",
+      "parameters": [
+        "self",
+        "episodes"
+      ],
+      "parameter_count": 2
+    },
+    "advanced_bacterium_v7.AdvancedBacteriumV7.update_biophysics": {
+      "status": "CONNECTED",
+      "parameters": [
+        "self",
+        "dt",
+        "forces"
+      ],
+      "parameter_count": 3
+    }
+  },
+  "broken_links": [
+    "Module import: web_server",
+    "Cross-module: expected an indented block after 'except' statement on line 96 (web_server.py, line 97)",
+    "Simulation flow: expected an indented block after 'except' statement on line 96 (web_server.py, line 97)"
+  ],
+  "missing_dependencies": [],
+  "performance": {
+    "benchmarks": [
+      "MD Force Calc: 0.015307s/iteration",
+      "WF Generation: 0.000101s/generation",
+      "Bacterium Update: 0.016681s/50bacteria"
+    ]
+  },
+  "integration_score": 63.666666666666664
+}

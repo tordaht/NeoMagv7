@@ -1,0 +1,3 @@
+timestamp,step,predictions_mean,predictions_std,sample_size,prediction_variance,prediction_time,data_points_analyzed,analysis_method
+1749061335.3906586,249,0.633947547008456,0.2000179350183073,55,0.0400071743289878,0.1,55,Mock (TabPFN unavailable)
+1749061416.4539952,1380,0.6138800769292139,0.22918629073333818,160,0.05252635586010622,0.1,160,Mock (TabPFN unavailable)

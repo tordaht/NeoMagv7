@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧬 NeoMag V7 - Basit Simülasyon</title>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-areas: 
+                "header header"
+                "controls simulation"
+                "stats charts";
+            grid-template-rows: 80px 1fr 300px;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .header {
+            grid-area: header;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        
+        .status {
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        
+        .status.running { background: #00ff88; color: #000; }
+        .status.stopped { background: #ff4444; color: #fff; }
+        
+        .controls {
+            grid-area: controls;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .simulation {
+            grid-area: simulation;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+        
+        .canvas {
+            width: 100%;
+            height: 500px;
+            background: linear-gradient(45deg, #0a0a0a, #1a1a1a);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid rgba(0,212,255,0.3);
+        }
+        
+        .bacterium {
+            position: absolute;
+            border-radius: 50%;
+            transition: all 0.1s ease;
+            border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        
+        .bacterium.elite { background: radial-gradient(circle, #ffd700, #ffb347); }
+        .bacterium.veteran { background: radial-gradient(circle, #4169e1, #6495ed); }
+        .bacterium.strong { background: radial-gradient(circle, #32cd32, #90ee90); }
+        .bacterium.basic { background: radial-gradient(circle, #ff8c00, #ffa500); }
+        
+        .food {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: radial-gradient(circle, #00ff88, #00cc66);
+            border-radius: 50%;
+            box-shadow: 0 0 8px #00ff88;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,212,255,0.4);
+        }
+        
+        .btn.danger {
+            background: linear-gradient(45deg, #ff4444, #cc0000);
+        }
+        
+        .btn.warning {
+            background: linear-gradient(45deg, #ffaa00, #cc8800);
+        }
+        
+        .stats {
+            grid-area: stats;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .charts {
+            grid-area: charts;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #00d4ff;
+            border-bottom: 2px solid #00d4ff;
+            padding-bottom: 5px;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        
+        .connection-status.connected {
+            background: #00ff88;
+            color: #000;
+        }
+        
+        .connection-status.disconnected {
+            background: #ff4444;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">Bağlanıyor...</div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="logo">🧬 NeoMag V7 - Basit Simülasyon</div>
+            <div class="status" id="simulationStatus">DURDURULDU</div>
+        </div>
+        
+        <div class="controls">
+            <div class="section-title">Kontroller</div>
+            <button class="btn" onclick="startSimulation()">🚀 Simülasyonu Başlat</button>
+            <button class="btn warning" onclick="stopSimulation()">⏸️ Duraklat</button>
+            <button class="btn danger" onclick="resetSimulation()">🔄 Sıfırla</button>
+            
+            <div class="section-title" style="margin-top: 30px;">Ayarlar</div>
+            <div style="margin: 10px 0;">
+                <label>Güncelleme Hızı:</label>
+                <select id="updateSpeed" onchange="changeUpdateSpeed()">
+                    <option value="100">Hızlı (100ms)</option>
+                    <option value="500" selected>Normal (500ms)</option>
+                    <option value="1000">Yavaş (1s)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="simulation">
+            <div class="section-title">Simülasyon Alanı</div>
+            <div class="canvas" id="simulationCanvas"></div>
+        </div>
+        
+        <div class="stats">
+            <div class="section-title">İstatistikler</div>
+            <div class="stat-item">
+                <span>Toplam Bakteri:</span>
+                <span id="totalBacteria">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Ortalama Fitness:</span>
+                <span id="avgFitness">0.000</span>
+            </div>
+            <div class="stat-item">
+                <span>Nesil:</span>
+                <span id="generation">1</span>
+            </div>
+            <div class="stat-item">
+                <span>Son Güncelleme:</span>
+                <span id="lastUpdate">-</span>
+            </div>
+        </div>
+        
+        <div class="charts">
+            <div class="section-title">Grafikler</div>
+            <div id="populationChart" style="height: 200px; background: rgba(0,0,0,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                Popülasyon grafiği burada görünecek
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let updateInterval;
+        let updateSpeed = 500; // ms
+        let isConnected = false;
+        
+        // Connection status
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.textContent = 'Bağlı';
+                status.className = 'connection-status connected';
+                isConnected = true;
+            } else {
+                status.textContent = 'Bağlantı Kesildi';
+                status.className = 'connection-status disconnected';
+                isConnected = false;
+            }
+        }
+        
+        // API calls
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+                
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(endpoint, options);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                updateConnectionStatus(true);
+                return await response.json();
+            } catch (error) {
+                console.error('API call failed:', error);
+                updateConnectionStatus(false);
+                throw error;
+            }
+        }
+        
+        // Simulation controls
+        async function startSimulation() {
+            try {
+                const result = await apiCall('/api/start', 'POST');
+                console.log('Simulation started:', result);
+                startDataUpdates();
+            } catch (error) {
+                alert('Simülasyon başlatılamadı: ' + error.message);
+            }
+        }
+        
+        async function stopSimulation() {
+            try {
+                const result = await apiCall('/api/stop', 'POST');
+                console.log('Simulation stopped:', result);
+                stopDataUpdates();
+            } catch (error) {
+                alert('Simülasyon durdurulamadı: ' + error.message);
+            }
+        }
+        
+        async function resetSimulation() {
+            try {
+                const result = await apiCall('/api/reset', 'POST');
+                console.log('Simulation reset:', result);
+                clearCanvas();
+            } catch (error) {
+                alert('Simülasyon sıfırlanamadı: ' + error.message);
+            }
+        }
+        
+        // Data updates
+        function startDataUpdates() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            
+            updateInterval = setInterval(async () => {
+                try {
+                    await updateSimulationData();
+                } catch (error) {
+                    console.error('Data update failed:', error);
+                }
+            }, updateSpeed);
+        }
+        
+        function stopDataUpdates() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        }
+        
+        async function updateSimulationData() {
+            try {
+                // Get status
+                const status = await apiCall('/api/status');
+                updateStatus(status);
+                
+                // Get simulation data
+                const data = await apiCall('/api/data');
+                updateCanvas(data);
+                updateStats(data.stats);
+                
+            } catch (error) {
+                console.error('Failed to update simulation data:', error);
+            }
+        }
+        
+        function updateStatus(status) {
+            const statusElement = document.getElementById('simulationStatus');
+            if (status.running) {
+                statusElement.textContent = 'ÇALIŞIYOR';
+                statusElement.className = 'status running';
+            } else {
+                statusElement.textContent = 'DURDURULDU';
+                statusElement.className = 'status stopped';
+            }
+        }
+        
+        function updateStats(stats) {
+            document.getElementById('totalBacteria').textContent = stats.total_bacteria;
+            document.getElementById('avgFitness').textContent = stats.avg_fitness.toFixed(3);
+            document.getElementById('generation').textContent = stats.generation;
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+        
+        function updateCanvas(data) {
+            const canvas = document.getElementById('simulationCanvas');
+            
+            // Clear existing elements
+            canvas.innerHTML = '';
+            
+            // Add bacteria
+            data.bacteria.forEach(bacterium => {
+                const element = document.createElement('div');
+                element.className = `bacterium ${bacterium.classification}`;
+                element.style.left = `${bacterium.x}px`;
+                element.style.top = `${bacterium.y}px`;
+                element.style.width = `${bacterium.size}px`;
+                element.style.height = `${bacterium.size}px`;
+                element.title = `Energy: ${bacterium.energy.toFixed(1)}, Fitness: ${bacterium.fitness.toFixed(3)}, Age: ${bacterium.age}`;
+                canvas.appendChild(element);
+            });
+            
+            // Add food
+            data.food.forEach(food => {
+                const element = document.createElement('div');
+                element.className = 'food';
+                element.style.left = `${food.x}px`;
+                element.style.top = `${food.y}px`;
+                element.title = `Energy: ${food.energy.toFixed(1)}`;
+                canvas.appendChild(element);
+            });
+        }
+        
+        function clearCanvas() {
+            document.getElementById('simulationCanvas').innerHTML = '';
+        }
+        
+        function changeUpdateSpeed() {
+            const select = document.getElementById('updateSpeed');
+            updateSpeed = parseInt(select.value);
+            
+            if (updateInterval) {
+                stopDataUpdates();
+                startDataUpdates();
+            }
+        }
+        
+        // Initialize
+        window.addEventListener('load', async () => {
+            console.log('🧬 NeoMag V7 Simple Client Starting...');
+            
+            // Test connection
+            try {
+                await apiCall('/api/status');
+                console.log('✅ Server connection successful');
+            } catch (error) {
+                console.error('❌ Server connection failed:', error);
+            }
+            
+            // Start periodic updates
+            startDataUpdates();
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopDataUpdates();
+        });
+    </script>
+</body>
+</html> 

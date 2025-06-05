@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧬 NeoMag V7 - Profesyonel Bio-Fizik Laboratuvarı</title>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #3b82f6; /* Daha canlı bir mavi */
+            --secondary: #10b981; /* Yeşilimsi bir ikincil renk */
+            --accent: #f59e0b; /* Vurgu için kehribar */
+            --success: #22c55e; /* Başarı için canlı yeşil */
+            --warning: #eab308; /* Uyarı için sarı */
+            --error: #ef4444; /* Hata için canlı kırmızı */
+            --bg1: #111827; /* Koyu gri-mavi */
+            --bg2: #1f2937; /* Orta koyu gri-mavi */
+            --bg3: #374151; /* Açık gri-mavi */
+            --bg4: #4b5563; /* Daha açık gri-mavi */
+            --text1: #f3f4f6; /* Çok açık gri */
+            --text2: #d1d5db; /* Açık gri */
+            --text3: #9ca3af; /* Orta gri */
+            --border: #4b5563; /* Kenarlık için bg4 ile aynı */
+            --elite: #ffd700; --veteran: #4169e1; --strong: #32cd32;
+            --energetic: #ff6347; --young: #00bfff; --basic: #ff8c00;
+            --glass: rgba(31, 41, 55, 0.7); /* Daha opak cam efekti */
+            --glass-border: rgba(75, 85, 99, 0.5); /* Daha belirgin cam kenarlığı */
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 50%, var(--primary) 120%);
+            color: var(--text1); min-height: 100vh; overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-areas: "header header"
+                                 "sidebar main";
+            grid-template-rows: 70px 1fr;
+            grid-template-columns: 320px 1fr; /* Kenar çubuğu biraz daha geniş */
+            min-height: 100vh; gap: 16px; padding: 16px;
+        }
+
+        .header {
+            grid-area: header;
+            background: var(--glass);
+            backdrop-filter: blur(15px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px; display: flex; justify-content: space-between;
+            align-items: center; padding: 0 28px; box-shadow: 0 8px 32px rgba(0,0,0,0.37);
+        }
+
+        .logo { font-size: 26px; font-weight: 700; color: var(--text1); letter-spacing: -0.5px; }
+        .status-bar { display: flex; gap: 16px; align-items: center; }
+        .status-pill {
+            padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .status-running { background-color: var(--success); color: white; }
+        .status-paused { background-color: var(--warning); color: var(--bg1); }
+        .status-stopped { background-color: var(--error); color: white; }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: var(--glass);
+            backdrop-filter: blur(15px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px; padding: 24px; overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.37);
+        }
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-thumb { background-color: var(--accent); border-radius: 3px; }
+        .sidebar::-webkit-scrollbar-track { background-color: transparent; }
+
+
+        .main-area {
+            grid-area: main; display: grid;
+            grid-template-areas: "simulation stats"
+                                 "charts charts"
+                                 "tabpfn tabpfn"; /* tabpfn alanı eklendi */
+            grid-template-rows: minmax(400px, 55vh) auto auto; /* Simülasyon alanı ve chartlar için satır, tabpfn için yeni satır */
+            grid-template-columns: 1fr 380px; /* İstatistik paneli biraz daha geniş */
+            gap: 16px;
+        }
+
+        .panel { /* Genel panel stili */
+            background: var(--glass);
+            backdrop-filter: blur(15px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px; padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.37);
+        }
+
+        .simulation-panel { grid-area: simulation; position: relative; overflow: hidden; }
+        .stats-panel { grid-area: stats; overflow-y: auto; }
+        .charts-grid-container { /* charts-grid için bir sarmalayıcı */
+            grid-area: charts;
+            overflow-y: auto; /* Sadece bu sarmalayıcıda dikey kaydırma */
+            padding-right: 8px; /* Kaydırma çubuğu için boşluk */
+        }
+
+        .charts-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Daha duyarlı */
+            gap: 16px;
+            /* max-height kaldırıldı, sarmalayıcı yönetecek */
+        }
+        .charts-grid-container::-webkit-scrollbar { width: 6px; }
+        .charts-grid-container::-webkit-scrollbar-thumb { background-color: var(--accent); border-radius: 3px; }
+
+
+        .section { margin-bottom: 28px; }
+        .section-title { 
+            font-size: 16px; font-weight: 600; color: var(--accent);
+            margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.8px;
+            border-bottom: 1px solid var(--border); padding-bottom: 8px;
+        }
+
+        .btn {
+            width: 100%; padding: 12px 16px; margin-bottom: 10px; border: none; border-radius: 8px;
+            background: linear-gradient(145deg, var(--primary), var(--secondary));
+            color: white; font-weight: 600; cursor: pointer; transition: all 0.25s ease-out;
+            font-size: 13px; text-transform: uppercase; letter-spacing: 0.7px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .btn:hover { 
+            transform: translateY(-3px) scale(1.02); 
+            box-shadow: 0 10px 25px rgba(var(--rgb-secondary, 16, 185, 129), 0.4); /* --secondary'nin RGB karşılığı */
+        }
+         .btn:active { transform: translateY(-1px); }
+        .btn-danger { background: linear-gradient(145deg, var(--error), #c53030); }
+        .btn-warning { background: linear-gradient(145deg, var(--warning), #dd6b20); }
+        .btn:disabled { background: var(--bg3); color: var(--text3); cursor: not-allowed; box-shadow: none; transform: none;}
+
+
+        .input-group { margin-bottom: 16px; }
+        .input-group label { 
+            display: block; margin-bottom: 6px; color: var(--text2); 
+            font-size: 12px; font-weight: 500;
+        }
+        .input-group input { 
+            width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px;
+            background: var(--bg2); color: var(--text1); font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-group input:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(var(--rgb-accent, 245, 158, 11), 0.3); /* --accent'in RGB karşılığı */
+        }
+
+
+        .canvas {
+            width: 100%; height: 100%; 
+            background-image: 
+                radial-gradient(circle at 15% 25%, rgba(var(--rgb-primary, 59, 130, 246), 0.15), transparent 50%),
+                radial-gradient(circle at 85% 75%, rgba(var(--rgb-accent, 245, 158, 11), 0.1), transparent 50%),
+                linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 100%);
+            border-radius: 10px; position: relative; overflow: hidden; cursor: grab;
+            border: 1px solid var(--glass-border);
+        }
+        .canvas:active { cursor: grabbing; }
+
+
+        .bacterium {
+            position: absolute; border-radius: 50%; transition: all 0.2s ease-out;
+            cursor: pointer; 
+            border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 0 12px rgba(0,0,0,0.5), inset 0 0 5px rgba(255,255,255,0.2);
+        }
+        .bacterium:hover { 
+            transform: scale(1.25); 
+            box-shadow: 0 0 25px rgba(var(--rgb-accent, 245, 158, 11), 0.7), inset 0 0 8px rgba(255,255,255,0.3);
+            z-index: 10; border-color: var(--accent);
+        }
+        /* Sınıf renkleri için RGB değerlerini de tanımlayalım */
+        :root {
+            --rgb-primary: 59, 130, 246; --rgb-secondary: 16, 185, 129; --rgb-accent: 245, 158, 11;
+            --rgb-elite: 255, 215, 0; --rgb-veteran: 65, 105, 225; --rgb-strong: 50, 205, 50;
+            --rgb-energetic: 255, 99, 71; --rgb-young: 0, 191, 255; --rgb-basic: 255, 140, 0;
+        }
+
+        .bacterium.elite { background: radial-gradient(circle, rgba(var(--rgb-elite),1), rgba(var(--rgb-elite),0.7)); }
+        .bacterium.veteran { background: radial-gradient(circle, rgba(var(--rgb-veteran),1), rgba(var(--rgb-veteran),0.7)); }
+        .bacterium.strong { background: radial-gradient(circle, rgba(var(--rgb-strong),1), rgba(var(--rgb-strong),0.7)); }
+        .bacterium.energetic { background: radial-gradient(circle, rgba(var(--rgb-energetic),1), rgba(var(--rgb-energetic),0.7)); }
+        .bacterium.young { background: radial-gradient(circle, rgba(var(--rgb-young),1), rgba(var(--rgb-young),0.7)); }
+        .bacterium.basic { background: radial-gradient(circle, rgba(var(--rgb-basic),1), rgba(var(--rgb-basic),0.7)); }
+
+
+        .food { 
+            position: absolute; width: 6px; height: 6px; 
+            background: radial-gradient(circle, #34d399, #059669); 
+            border-radius: 50%; box-shadow: 0 0 10px #34d399, 0 0 20px #34d399;
+            animation: pulse 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 1; }
+        }
+
+        .stat-card {
+            background: linear-gradient(145deg, var(--bg3), var(--bg2));
+            border: 1px solid var(--glass-border);
+            border-radius: 10px; padding: 16px; margin-bottom: 10px; text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+
+        .stat-value { 
+            font-size: 22px; font-weight: 700; color: var(--secondary);
+            margin-bottom: 4px;
+        }
+        .stat-label { 
+            font-size: 11px; color: var(--text3); text-transform: uppercase; 
+            letter-spacing: 0.7px;
+        }
+
+        .chart-container {
+            background: linear-gradient(145deg, var(--bg3), var(--bg2));
+            border: 1px solid var(--glass-border);
+            border-radius: 10px; padding: 16px; min-height: 200px; /* Grafiklere daha fazla yer */
+            display: flex; flex-direction: column;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+         .chart-container:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+
+        .chart-title {
+            font-size: 13px; font-weight: 600; color: var(--accent);
+            margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.6px;
+            text-align: center;
+        }
+        .plotly-chart-div { flex-grow: 1; } /* Plotly div'inin kalan alanı doldurmasını sağlar */
+
+
+        .modal {
+            display: none; position: fixed; z-index: 2000; left: 0; top: 0; 
+            width: 100%; height: 100%; background: rgba(17, 24, 39, 0.85); /* bg1'e yakın bir renk */
+            backdrop-filter: blur(8px) saturate(150%);
+            align-items: center; justify-content: center; /* İçeriği ortalamak için */
+        }
+        .modal-content {
+            background: linear-gradient(145deg, var(--bg2), var(--bg3));
+            padding: 28px; border-radius: 16px; width: 90%; max-width: 650px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+            position: relative; /* Kapatma butonu için */
+        }
+        .close { 
+            position: absolute; top: 16px; right: 20px;
+            color: var(--text3); font-size: 32px; font-weight: bold; 
+            cursor: pointer; transition: color 0.2s, transform 0.2s;
+        }
+        .close:hover { color: var(--text1); transform: scale(1.1); }
+
+
+        .class-legend {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top: 16px;
+        }
+        .legend-item {
+            display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+            background: rgba(var(--rgb-text1, 243, 244, 246), 0.08); border-radius: 6px; font-size: 11px;
+        }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        .keyboard-shortcuts {
+            position: fixed; bottom: 16px; right: 16px; padding: 14px;
+            background: var(--glass); backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border); border-radius: 8px;
+            font-size: 11px; color: var(--text2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000;
+        }
+        .keyboard-shortcuts strong { color: var(--accent); }
+
+        .loading { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: var(--text2); font-size: 16px; font-weight: 500;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+        }
+        .loading::before { /* Basit bir yükleme animasyonu */
+            content: ''; display: block; width: 24px; height: 24px;
+            border-radius: 50%; border: 3px solid var(--text3);
+            border-top-color: var(--accent);
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+
+        .connection-status {
+            padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+        }
+        .connected { background-color: var(--success); color: white; }
+        .disconnected { background-color: var(--error); color: white; }
+
+        /* Mobil cihazlar için düzenlemeler */
+        @media (max-width: 1024px) {
+            .app-container {
+                grid-template-areas: "header" "sidebar" "main";
+                grid-template-rows: 70px auto 1fr;
+                grid-template-columns: 1fr;
+            }
+            .sidebar { max-height: 40vh; overflow-y: auto; }
+            .main-area {
+                grid-template-areas: "simulation" "stats" "charts";
+                grid-template-rows: 400px auto auto;
+                grid-template-columns: 1fr;
+            }
+            .stats-panel { max-height: 30vh; }
+        }
+         @media (max-width: 768px) {
+            .charts-grid { grid-template-columns: 1fr; } /* Grafikleri tek sütun yap */
+            .logo { font-size: 20px; }
+            .status-pill { padding: 6px 10px; font-size: 10px;}
+            .btn { padding: 10px 14px; font-size: 12px;}
+         }
+
+        .tabpfn-analysis-panel { /* Yeni eklenecek stil */
+            grid-area: tabpfn; /* Eğer grid area kullanılacaksa, main-area grid-template-areas güncellenmeli */
+            background: var(--glass);
+            backdrop-filter: blur(15px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 16px; /* Grafiklerle arasında boşluk */
+            box-shadow: 0 8px 32px rgba(0,0,0,0.37);
+        }
+
+        .tabpfn-entry {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        .tabpfn-entry:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .tabpfn-entry h4 {
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+        .tabpfn-entry p {
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: var(--text2);
+        }
+        .tabpfn-entry .metric {
+            font-weight: 600;
+            color: var(--text1);
+        }
+
+        .params-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .param-input {
+            width: 100%;
+            padding: 10px !important; /* input-group içindeki padding'i eziyor */
+            font-size: 14px !important;
+        }
+
+        .parameters-panel {
+            background: var(--bg2);
+            border-radius: 8px;
+        }
+        .params-section-title {
+             text-align: center; font-size: 1.2em; color: var(--accent) !important;
+        }
+        .chart-section-title {
+            text-align: center; font-size: 1.2em; color: var(--primary) !important; 
+            margin-bottom: 15px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">🧬 NeoMag V7 Laboratuvarı</div>
+            <div class="status-bar">
+                <div id="connectionStatus" class="connection-status disconnected">BAĞLANTI...</div>
+                <div id="simulationStatus" class="status-pill status-stopped">DURDU</div>
+                <div class="status-pill">FPS: <span id="fpsDisplay">--</span></div>
+                <div class="status-pill">ADIM: <span id="stepDisplay">0</span></div>
+            </div>
+        </header>
+
+        <!-- Sidebar Controls -->
+        <aside class="sidebar panel">
+            <div class="section">
+                <h2 class="section-title">Simülasyon Kontrolü</h2>
+                <button id="startBtn" class="btn">🚀 Başlat</button>
+                <button id="pauseBtn" class="btn btn-warning" disabled>⏸️ Duraklat</button>
+                <button id="stopBtn" class="btn btn-danger" disabled>⏹️ Durdur</button>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">🦠 Parametreler</h2>
+                <div class="input-group">
+                    <label for="bacteriaCount">Başlangıç Bakteri Sayısı</label>
+                    <input type="number" id="bacteriaCount" value="30" min="5" max="150">
+                </div>
+                <button id="addBacteriaBtn" class="btn" disabled>➕ 10 Bakteri Ekle</button>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">📈 Veri İşlemleri</h2>
+                <button id="exportDataBtn" class="btn"><i class="fas fa-download"></i> Veri Dışa Aktar</button>
+                <button id="aiAnalysisBtn" class="btn"><i class="fas fa-lightbulb"></i> AI Analiz</button>
+                <button id="triggerTabpfnBtn" class="btn btn-warning"><i class="fas fa-cogs"></i> TabPFN Analizi Tetikle</button>
+                <button id="analyzeTabpfnResultsBtn" class="btn btn-info"><i class="fas fa-brain"></i> TabPFN Sonuçlarını Yorumla</button>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">🤖 AI Asistan</h2>
+                <div class="input-group">
+                    <input type="text" id="aiQuestionInput" placeholder="AI'ya soru sor..." maxlength="200">
+                </div>
+                <button id="askAiBtn" class="btn">❓ Sor</button>
+                <div id="aiResponse" style="margin-top: 10px; padding: 10px; background: var(--bg3); border-radius: 6px; font-size: 12px; max-height: 150px; overflow-y: auto; display: none;"></div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">🌐 Ngrok Tunnel</h2>
+                <button id="ngrokStartBtn" class="btn">🚀 Tunnel Başlat</button>
+                <button id="ngrokStopBtn" class="btn btn-danger" disabled>🛑 Tunnel Durdur</button>
+                <div id="ngrokUrl" style="margin-top: 10px; padding: 8px; background: var(--bg3); border-radius: 6px; font-size: 11px; display: none;">
+                    <strong>🌐 Public URL:</strong><br>
+                    <a id="ngrokLink" href="#" target="_blank" style="color: var(--accent); word-break: break-all;"></a>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">🎨 Bakteri Sınıfları</h2>
+                <div class="class-legend">
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--elite)"></div>Elite</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--veteran)"></div>Veteran</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--strong)"></div>Güçlü</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--energetic)"></div>Enerjik</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--young)"></div>Genç</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:var(--basic)"></div>Temel</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Area -->
+        <main class="main-area">
+            <section class="simulation-panel panel">
+                <div id="simulationCanvas" class="canvas">
+                    <div class="loading">Simülasyon başlatılmayı bekliyor...</div>
+                </div>
+            </section>
+
+            <section class="stats-panel panel">
+                <h2 class="section-title">📊 Canlı İstatistikler</h2>
+                <div id="statsContainer">
+                    <div class="stat-card"><div class="stat-value" id="bacteriaCountStat">0</div><div class="stat-label">Toplam Bakteri</div></div>
+                    <div class="stat-card"><div class="stat-value" id="foodCountStat">0</div><div class="stat-label">Yiyecek Parçacığı</div></div>
+                    <div class="stat-card"><div class="stat-value" id="currentGenerationStat">0</div><div class="stat-label">Maks. Jenerasyon</div></div>
+                    <div class="stat-card"><div class="stat-value" id="avgFitness">0.00</div><div class="stat-label">Ort. Fitness</div></div>
+                    <div class="stat-card"><div class="stat-value" id="avgEnergy">0.0</div><div class="stat-label">Ort. Enerji</div></div>
+                    <div class="stat-card"><div class="stat-value" id="geneticDiversityPi">0.000</div><div class="stat-label">Nük. Çeşitlilik (π)</div></div>
+                    <div class="stat-card"><div class="stat-value" id="tajimasD">0.00</div><div class="stat-label">Tajima's D</div></div>
+                </div>
+            </section>
+            
+            <div class="charts-grid-container panel">
+                <h3 class="section-title chart-section-title"><i class="fas fa-chart-line"></i> Detaylı Analiz Grafikleri</h3>
+                <div class="charts-grid" id="chartsGrid">
+                    <div class="chart-container"><h3 class="chart-title">Popülasyon Sayısı</h3><div id="populationChart" class="plotly-chart-div"></div></div>
+                    <div class="chart-container"><h3 class="chart-title">Ortalama Fitness</h3><div id="fitnessChart" class="plotly-chart-div"></div></div>
+                    <div class="chart-container"><h3 class="chart-title">Ortalama Enerji</h3><div id="energyChart" class="plotly-chart-div"></div></div>
+                    <div class="chart-container"><h3 class="chart-title">Nükleotid Çeşitliliği (π)</h3><div id="diversityPiChart" class="plotly-chart-div"></div></div>
+                    <div class="chart-container"><h3 class="chart-title">Tajima's D</h3><div id="tajimasDChart" class="plotly-chart-div"></div></div>
+                    <div class="chart-container"><h3 class="chart-title">ATP Seviyesi (Ort.)</h3><div id="atpChart" class="plotly-chart-div"></div></div>
+                    <div class="chart-container"><h3 class="chart-title">Sıcaklık Değişimi</h3><div id="temperatureChart" class="plotly-chart-div"></div></div>
+                    <div class="chart-container"><h3 class="chart-title">Besin Bulunabilirliği</h3><div id="nutrientAvailabilityChart" class="plotly-chart-div"></div></div>
+                </div>
+            </div>
+
+            <!-- Simülasyon Ayarları Paneli -->
+            <div class="panel parameters-panel" style="grid-column: 1 / -1; margin-top: 16px;"> 
+                <h3 class="section-title params-section-title"><i class="fas fa-sliders-h"></i> Simülasyon Ayarları</h3>
+                <div id="simulationParamsForm" class="params-form-grid">
+                    <!-- Sıcaklık -->
+                    <div class="input-group">
+                        <label for="paramTemperature">Sıcaklık (K):</label>
+                        <input type="number" id="paramTemperature" name="temperature" step="0.1" class="param-input">
+                    </div>
+                    <!-- Besin Bulunabilirliği -->
+                    <div class="input-group">
+                        <label for="paramNutrient">Besin Bulunabilirliği (%):</label>
+                        <input type="number" id="paramNutrient" name="nutrient_availability" step="1" min="0" max="100" class="param-input">
+                    </div>
+                    <!-- Mutasyon Oranı -->
+                    <div class="input-group">
+                        <label for="paramMutationRate">Mutasyon Oranı (örn: 1e-6):</label>
+                        <input type="text" id="paramMutationRate" name="mutation_rate" class="param-input">
+                    </div>
+                    <!-- Rekombinasyon Oranı -->
+                    <div class="input-group">
+                        <label for="paramRecombinationRate">Rekombinasyon Oranı (örn: 1e-7):</label>
+                        <input type="text" id="paramRecombinationRate" name="recombination_rate" class="param-input">
+                    </div>
+                    <!-- TabPFN Analiz Aralığı -->
+                    <div class="input-group">
+                        <label for="paramTabpfnInterval">TabPFN Analiz Aralığı (adım):</label>
+                        <input type="number" id="paramTabpfnInterval" name="tabpfn_analysis_interval" step="10" min="10" class="param-input">
+                    </div>
+                    <!-- TabPFN Batch Büyüklüğü -->
+                    <div class="input-group">
+                        <label for="paramTabpfnBatchSize">TabPFN Batch Büyüklüğü:</label>
+                        <input type="number" id="paramTabpfnBatchSize" name="tabpfn_batch_size" step="1" min="5" class="param-input">
+                    </div>
+                </div>
+                <button id="saveParamsBtn" class="btn" style="margin-top: 15px;"><i class="fas fa-save"></i> Ayarları Kaydet ve Uygula</button>
+            </div>
+
+            <!-- TABPFN Analiz Bölümü -->
+            <div class="tabpfn-analysis-panel panel" style="grid-area: tabpfn;">
+                <h3 class="section-title" style="text-align: center; font-size: 1.2em; color: var(--secondary);">
+                    <i class="fas fa-brain"></i> TabPFN Analiz Yorumları
+                </h3>
+                <div id="tabpfn-analysis-content">
+                    <p>TabPFN analiz verileri burada gösterilecektir...</p>
+                </div>
+            </div>
+            <!-- TABPFN Analiz Bölümü Sonu -->
+
+        </main>
+    </div>
+
+    <!-- Bacterium Details Modal -->
+    <div id="bacteriumModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModalBtn">&times;</span>
+            <h3 style="color: var(--accent); margin-bottom: 20px; font-size:20px;">🦠 Bakteri Detayları</h3>
+            <div id="bacteriumDetails" style="font-size:14px; max-height: 70vh; overflow-y:auto;">Yükleniyor...</div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts -->
+    <div class="keyboard-shortcuts">
+        <div><strong>Kısayollar:</strong> [Space]: Duraklat/Devam | [S]: Başlat | [Q]: Durdur | [A]: Bakteri Ekle</div>
+    </div>
+
+    <script>
+        // Global state
+        let isRunning = false;
+        let isPaused = false;
+        let socket = null; // Socket.IO bağlantısı için
+        let simDataCache = { // Grafik verilerini biriktirmek için
+            time: [], population: [], avg_fitness: [], avg_energy: [],
+            diversity_pi: [], tajimas_d: [], avg_atp: [],
+            temperature: [], nutrient_availability: []
+        };
+        const MAX_DATA_POINTS = 100; // Grafiklerde tutulacak maksimum veri noktası
+
+        // API endpoint'leri (Python Flask sunucunuzun adresine göre güncelleyin)
+        const API_BASE_URL = ''; // Eğer aynı origin'de ise boş bırakılabilir
+
+        // DOM Elements
+        const el = (id) => document.getElementById(id);
+        const query = (selector) => document.querySelector(selector);
+
+        // Initialize Socket.IO (opsiyonel, eğer backend socket.io kullanıyorsa)
+        function initializeSocketConnection() {
+            socket = io(); // API_BASE_URL boşsa veya aynı origin'deyse bu yeterli
+            socket.on('connect', () => {
+                console.log('🔗 Sunucuya Socket.IO ile bağlandı');
+                updateConnectionStatus(true);
+                // socket.emit('request_initial_data'); // Başlangıç verisi isteği şimdilik pasif, veri döngüsü zaten gönderecek
+            });
+            socket.on('disconnect', () => {
+                console.log('❌ Sunucu Socket.IO bağlantısı kesildi');
+                updateConnectionStatus(false);
+            });
+            socket.on('simulation_update', function(data) { // Olay adı 'simulation_update' olarak düzeltildi
+                // console.log("Raw data received from socket:", data); // İstenirse bu log açılabilir
+                updateDashboard(data);
+            });
+            socket.on('simulation_stopped', () => {
+                isRunning = false; isPaused = false; updateUI(); clearCanvasAndData(); // clearCanvas yerine clearCanvasAndData
+                console.log('Sunucudan simülasyon durduruldu bilgisi alındı.');
+            });
+            // Yanıltıcı log ve durum güncellemesi kaldırıldı
+        }
+
+
+        function updateConnectionStatus(connected) {
+            const statusEl = el('connectionStatus');
+            if (connected) {
+                statusEl.textContent = 'BAĞLI';
+                statusEl.className = 'connection-status connected';
+            } else {
+                statusEl.textContent = 'BAĞLANTI YOK';
+                statusEl.className = 'connection-status disconnected';
+            }
+        }
+
+        // API calls
+        async function fetchApi(endpoint, method = 'GET', body = null) {
+            try {
+                const options = { 
+                    method,
+                    headers: {}
+                };
+                if (body) {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify(body);
+                }
+                const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+                    throw new Error(`API Hatası ${response.status}: ${errorData.message || 'Bilinmeyen hata'}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`❌ API çağrısı ${endpoint} başarısız:`, error);
+                alert(`API ile iletişimde sorun: ${error.message}`);
+                // Bağlantı hatası durumunda UI'ı güncelle
+                if (endpoint !== '/simulation_data') { // Sürekli veri çekme hatası için alert gösterme
+                     updateConnectionStatus(false);
+                }
+                throw error; // Hatayı tekrar fırlat ki çağıran fonksiyon da bilsin
+            }
+        }
+
+        async function startSimulation() {
+            const bacteriaCount = parseInt(el('bacteriaCount').value);
+            if (isNaN(bacteriaCount) || bacteriaCount <= 0) {
+                alert("Lütfen geçerli bir bakteri sayısı girin.");
+                return;
+            }
+            try {
+                const result = await fetchApi('/start_simulation', 'POST', { initial_bacteria_count: bacteriaCount });
+                if (result.status === 'success' || result.message.includes("başlatıldı")) { // Backend'den gelen yanıta göre
+                    isRunning = true; isPaused = false; updateUI();
+                    console.log('✅ Simülasyon başlatıldı:', result.message);
+                    el('simulationCanvas').innerHTML = '<div class="loading">Simülasyon verileri yükleniyor...</div>';
+                } else {
+                    console.error('❌ Simülasyon başlatılamadı:', result.message);
+                    alert('Simülasyon başlatılamadı: ' + result.message);
+                }
+            } catch (error) { /* Hata fetchApi içinde zaten loglandı/alertlendi */ }
+        }
+
+        async function pauseResumeSimulation() {
+            if (!isRunning) return;
+            const endpoint = isPaused ? '/resume_simulation' : '/pause_simulation';
+            try {
+                const result = await fetchApi(endpoint, 'POST');
+                 if (result.status === 'success' || result.message) {
+                    isPaused = endpoint === '/pause_simulation' ? true : !result.already_running; // Backend'den gelen duruma göre ayarla
+                    if (endpoint === '/resume_simulation' && result.message.includes("devam ediyor")) isPaused = false;
+                    if (endpoint === '/pause_simulation' && result.message.includes("duraklatıldı")) isPaused = true;
+
+                    updateUI();
+                    console.log(`⏯️ Simülasyon ${isPaused ? 'duraklatıldı' : 'devam ettirildi'}. Mesaj: ${result.message}`);
+                }
+            } catch (error) { /* Hata fetchApi içinde zaten loglandı/alertlendi */ }
+        }
+
+        async function stopSimulation() {
+            try {
+                const result = await fetchApi('/stop_simulation', 'POST');
+                if (result.status === 'success' || result.message.includes("durduruldu")) {
+                    isRunning = false; isPaused = false; updateUI(); clearCanvasAndData();
+                    console.log('⏹️ Simülasyon durduruldu.');
+                }
+            } catch (error) { /* Hata fetchApi içinde zaten loglandı/alertlendi */ }
+        }
+        
+        async function addBacteria() {
+             if (!isRunning) {
+                alert("Lütfen önce simülasyonu başlatın.");
+                return;
+            }
+            try {
+                const result = await fetchApi('/add_bacteria', 'POST', { count: 25 });
+                console.log('➕ Bakteri eklendi:', result.message);
+                if (result.status === 'success') {
+                    alert(`✅ ${result.message} - Toplam: ${result.total_bacteria}`);
+                }
+            } catch (error) { /* Hata fetchApi içinde zaten loglandı/alertlendi */ }
+        }
+
+        async function exportData() {
+            try {
+                const dataToExport = await fetchApi('/get_results');
+                const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `neomag_v7_data_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                console.log('💾 Veri dışa aktarıldı.');
+            } catch (error) { console.error('❌ Veri dışa aktarma hatası:', error); }
+        }
+
+        // AI Analysis functions
+        async function getAiAnalysis() {
+            try {
+                const result = await fetchApi('/ai_analysis', 'POST');
+                if (result.status === 'success') {
+                    el('aiAnalysisResult').innerHTML = `<div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <h4 style="color: #3b82f6; margin: 0 0 10px 0;">🧠 AI Analiz Sonucu</h4>
+                        <div style="line-height: 1.6; color: #e2e8f0;">${result.analysis.replace(/\n/g, '<br>')}</div>
+                    </div>`;
+                } else {
+                    el('aiAnalysisResult').innerHTML = `<div style="color: #ef4444;">❌ Analiz hatası: ${result.message}</div>`;
+                }
+            } catch (error) {
+                el('aiAnalysisResult').innerHTML = `<div style="color: #ef4444;">❌ Bağlantı hatası: ${error.message}</div>`;
+            }
+        }
+
+        // Alias function for backward compatibility
+        const triggerAiAnalysis = getAiAnalysis;
+
+        async function askAi() {
+            try {
+                const question = el('aiQuestionInput').value.trim();
+                if (!question) {
+                    alert('Lütfen bir soru yazın');
+                    return;
+                }
+                
+                el('askAiBtn').disabled = true;
+                el('askAiBtn').textContent = '🤔 Düşünüyor...';
+                
+                const result = await fetchApi('/ai_question', 'POST', { question: question });
+                if (result.status === 'success') {
+                    const aiResponse = el('aiResponse');
+                    aiResponse.innerHTML = `<strong>❓ Soru:</strong> ${question}<br><br><strong>🤖 Cevap:</strong><br>${result.answer}`;
+                    aiResponse.style.display = 'block';
+                    el('aiQuestionInput').value = '';
+                    console.log('🤖 AI soruya cevap verdi');
+                } else {
+                    alert('AI cevap veremedi: ' + result.message);
+                }
+            } catch (error) {
+                console.error('❌ AI soru hatası:', error);
+                alert('AI sorusu sırasında hata oluştu');
+            } finally {
+                el('askAiBtn').disabled = false;
+                el('askAiBtn').textContent = '❓ Sor';
+            }
+        }
+        
+        function clearCanvasAndData() {
+            el('simulationCanvas').innerHTML = '<div class="loading">Simülasyon başlatılmayı bekliyor...</div>';
+            // Grafik verilerini sıfırla
+            simDataCache = { time: [], population: [], avg_fitness: [], avg_energy: [], diversity_pi: [], tajimas_d: [], avg_atp: [], temperature: [], nutrient_availability: [] };
+            // Tüm grafikleri temizle
+            const chartIds = ['populationChart', 'fitnessChart', 'energyChart', 'diversityPiChart', 'tajimasDChart', 'atpChart', 'temperatureChart', 'nutrientAvailabilityChart'];
+            chartIds.forEach(id => {
+                const chartDiv = el(id);
+                if (chartDiv) Plotly.purge(chartDiv); // Var olan grafiği temizle
+            });
+            // İstatistikleri sıfırla
+            el('bacteriaCountStat').textContent = '0';
+            el('foodCountStat').textContent = '0';
+            el('currentGenerationStat').textContent = '0';
+            el('avgFitness').textContent = '0.00';
+            el('avgEnergy').textContent = '0.0';
+            el('geneticDiversityPi').textContent = '0.000';
+            el('tajimasD').textContent = '0.00';
+            el('stepDisplay').textContent = '0';
+        }
+
+
+        // UI updates
+        function updateUI() {
+            const statusEl = el('simulationStatus');
+            const startBtn = el('startBtn');
+            const pauseBtn = el('pauseBtn');
+            const stopBtn = el('stopBtn');
+            const addBacteriaBtn = el('addBacteriaBtn');
+
+            if (isRunning) {
+                statusEl.textContent = isPaused ? 'DURAKLATILDI' : 'ÇALIŞIYOR';
+                statusEl.className = `status-pill ${isPaused ? 'status-paused' : 'status-running'}`;
+                startBtn.disabled = true;
+                pauseBtn.disabled = false;
+                pauseBtn.textContent = isPaused ? '▶️ Devam Et' : '⏸️ Duraklat';
+                stopBtn.disabled = false;
+                addBacteriaBtn.disabled = false;
+            } else {
+                statusEl.textContent = 'DURDU';
+                statusEl.className = 'status-pill status-stopped';
+                startBtn.disabled = false;
+                pauseBtn.disabled = true;
+                pauseBtn.textContent = '⏸️ Duraklat';
+                stopBtn.disabled = true;
+                addBacteriaBtn.disabled = true;
+            }
+        }
+        function updateLiveStatistics(data) {
+            if (!data) return;
+            
+            // CANLI İSTATİSTİKLER panelini güncelle
+            if (data.bacteria_count !== undefined) {
+                el('bacteriaCountStat').textContent = data.bacteria_count;
+            }
+            if (data.food_count !== undefined) {
+                el('foodCountStat').textContent = data.food_count;
+            }
+            if (data.current_generation !== undefined) {
+                el('currentGenerationStat').textContent = data.current_generation;
+            }
+            
+            // Ortalama fitness
+            if (data.avg_fitness !== undefined) {
+                el('avgFitness').textContent = data.avg_fitness.toFixed(2);
+            }
+            
+            // Ortalama enerji
+            if (data.avg_energy !== undefined) {
+                el('avgEnergy').textContent = data.avg_energy.toFixed(1);
+            }
+            
+            // Genetic diversity (π)
+            if (data.genetic_diversity_pi !== undefined) {
+                el('geneticDiversityPi').textContent = data.genetic_diversity_pi.toFixed(3);
+            }
+            
+            // Tajima's D
+            if (data.tajimas_d !== undefined) {
+                el('tajimasD').textContent = data.tajimas_d.toFixed(2);
+            }
+            
+            // Step counter
+            if (data.time_step !== undefined) {
+                el('stepDisplay').textContent = data.time_step;
+            }
+        }
+        
+        function updateDashboard(data) {
+            if (!data) {
+                console.warn("Dashboard update: No data received");
+                return;
+            }
+            // Log'u azalttık - sadece bakteri sayısı değişimi logla
+            if (data.bacteria_count && data.bacteria_count !== window.lastBacteriaCount) {
+                console.log(`🦠 Bacteria count changed: ${data.bacteria_count} (step: ${data.time_step})`);
+                window.lastBacteriaCount = data.bacteria_count;
+            }
+
+            updateLiveStatistics(data); 
+            updateCanvas(data);
+            updateSimulationParameterInputs(data.simulation_parameters);
+
+            if (data.scientific_data) { 
+                updateDashboardCharts(data.scientific_data);
+                updateTabPFNAnalysis(data.scientific_data); 
+            } else {
+                // İlk başta normal, console spam'ini engelle
+                if (!window.warningShown) {
+                    console.warn("scientific_data is missing from data packet for charts");
+                    window.warningShown = true;
+                }
+                initializeEmptyCharts(); 
+            }
+        }
+        
+        function updateDashboardCharts(scientificData) {
+            if (!scientificData) {
+                console.log("Skipping chart update: No scientific data.");
+                return;
+            }
+
+            const steps = scientificData.steps_history || [];
+            if (steps.length === 0) {
+                console.warn("No step history for charts.");
+                // return; // İlk başta boş olabilir, yine de grafikler initialize edilsin.
+            }
+
+            const chartLayout = (yaxisTitle = '', yaxisRange = null) => ({
+                margin: { t: 30, r: 20, b: 50, l: 60 }, 
+                paper_bgcolor: 'transparent', 
+                plot_bgcolor: 'rgba(255,255,255,0.03)',
+                font: { color: '#e2e8f0', size: 11 }, 
+                xaxis: { 
+                    title: 'Simülasyon Adımı', 
+                    showgrid: true, 
+                    gridcolor: 'rgba(255,255,255,0.1)', 
+                    zeroline: false 
+                },
+                yaxis: { 
+                    title: { text: yaxisTitle, font: { size: 12 } }, 
+                    showgrid: true, 
+                    gridcolor: 'rgba(255,255,255,0.1)', 
+                    zeroline: false,
+                    range: yaxisRange
+                }
+            });
+
+            const createChartData = (yValues, color, name) => [{
+                x: steps,
+                y: yValues || [],
+                type: 'scatter', 
+                mode: 'lines+markers',
+                name: name,
+                line: { color: color, width: 2 },
+                marker: { size: 3, color: color }
+            }];
+
+            try {
+                Plotly.react('populationChart', createChartData(scientificData.population_history, '#22c55e', 'Popülasyon'), chartLayout('Bakteri Sayısı'));
+                Plotly.react('fitnessChart', createChartData(scientificData.avg_fitness_history, '#3b82f6', 'Fitness'), chartLayout('Ort. Fitness', [0, 1]));
+                Plotly.react('energyChart', createChartData(scientificData.avg_energy_history, '#ff6347', 'Enerji'), chartLayout('Ort. Enerji'));
+                Plotly.react('diversityPiChart', createChartData(scientificData.diversity_pi_history, '#10b981', 'Diversity π'), chartLayout('Nükleotid Çeşitliliği (π)'));
+                Plotly.react('tajimasDChart', createChartData(scientificData.tajimas_d_history, '#4169e1', "Tajima's D"), chartLayout("Tajima's D"));
+                Plotly.react('atpChart', createChartData(scientificData.avg_atp_history, '#00bfff', 'ATP'), chartLayout('Ort. ATP Seviyesi'));
+                Plotly.react('temperatureChart', createChartData(scientificData.temperature_history, '#eab308', 'Sıcaklık'), chartLayout('Sıcaklık (K)'));
+                Plotly.react('nutrientAvailabilityChart', createChartData(scientificData.nutrient_availability_history, '#32cd32', 'Besin'), chartLayout('Besin Bulunabilirliği (%)', [0, 100]));
+                
+                // console.log('📈 Dashboard charts updated with history data.');
+            } catch(e) {
+                console.error("❌ Dashboard chart update error:", e);
+            }
+        }
+
+        function initializeEmptyCharts() {
+            console.log("Initializing empty charts...");
+            const emptyData = [{ x: [], y: [], type: 'scatter', mode: 'lines' }];
+            const chartLayout = (yaxisTitle = '') => ({ 
+                margin: { t: 30, r: 20, b: 50, l: 60 }, paper_bgcolor: 'transparent', plot_bgcolor: 'rgba(255,255,255,0.03)', font: { color: '#e2e8f0' }, 
+                xaxis: { title: 'Simülasyon Adımı', showgrid: true, gridcolor: 'rgba(255,255,255,0.1)' }, 
+                yaxis: { title: yaxisTitle, showgrid: true, gridcolor: 'rgba(255,255,255,0.1)' }
+            });
+            
+            const chartIds = [
+                {id: 'populationChart', title: 'Bakteri Sayısı'},
+                {id: 'fitnessChart', title: 'Ort. Fitness'},
+                {id: 'energyChart', title: 'Ort. Enerji'},
+                {id: 'diversityPiChart', title: 'Nükleotid Çeşitliliği (π)'},
+                {id: 'tajimasDChart', title: "Tajima's D"},
+                {id: 'atpChart', title: 'Ort. ATP Seviyesi'},
+                {id: 'temperatureChart', title: 'Sıcaklık (K)'},
+                {id: 'nutrientAvailabilityChart', title: 'Besin Bulunabilirliği (%)'}
+            ];
+
+            chartIds.forEach(chart => {
+                try {
+                    Plotly.react(chart.id, emptyData, chartLayout(chart.title));
+                } catch(e) {
+                    console.error(`Error initializing chart ${chart.id}:`, e);
+                }
+            });
+        }
+
+        function updateTabPFNAnalysis(scientificData) {
+            const tabpfnContent = document.getElementById('tabpfn-analysis-content');
+            if (!tabpfnContent) {
+                console.error("TabPFN content area not found!");
+                return;
+            }
+
+            if (scientificData.tabpfn_predictions && scientificData.tabpfn_predictions.length > 0) {
+                const predictions = scientificData.tabpfn_predictions;
+                // En son tahminleri gösterelim, örneğin son 3 tanesini
+                const recentPredictions = predictions.slice(-3).reverse(); // En son 3, ters sırada (en yeni en üstte)
+                
+                let htmlContent = '';
+                if (recentPredictions.length === 0) {
+                     htmlContent = '<p>Henüz TabPFN analizi yapılmadı veya veri mevcut değil.</p>';
+                } else {
+                    recentPredictions.forEach((prediction, index) => {
+                        htmlContent += `
+                            <div class="tabpfn-entry">
+                                <h4>Analiz #${predictions.length - index} (Adım: ${prediction.step || 'N/A'})</h4>
+                                <p>Tahmin Ortalaması: <span class="metric">${prediction.predictions_mean !== undefined ? prediction.predictions_mean.toFixed(4) : 'N/A'}</span></p>
+                                <p>Tahmin Standart Sapması: <span class="metric">${prediction.predictions_std !== undefined ? prediction.predictions_std.toFixed(4) : 'N/A'}</span></p>
+                                <p>Örneklem Büyüklüğü: <span class="metric">${prediction.sample_size || 'N/A'}</span></p>
+                                <p>Tahmin Varyansı: <span class="metric">${prediction.prediction_variance !== undefined ? prediction.prediction_variance.toFixed(4) : 'N/A'}</span></p>
+                                <p>Tahmin Süresi: <span class="metric">${prediction.prediction_time !== undefined ? prediction.prediction_time.toFixed(3) : 'N/A'} saniye</span></p>
+                                <p><em>Yorum: ${generateTabPFNInterpretation(prediction)}</em></p>
+                            </div>
+                        `;
+                    });
+                }
+                tabpfnContent.innerHTML = htmlContent;
+            } else {
+                tabpfnContent.innerHTML = '<p>TabPFN analiz verisi bulunmuyor.</p>';
+            }
+        }
+
+        function generateTabPFNInterpretation(prediction) {
+            if (!prediction) return "Veri yok.";
+
+            let interpretation = "";
+            const mean = prediction.predictions_mean;
+            const std = prediction.predictions_std;
+            const variance = prediction.prediction_variance;
+
+            if (mean !== undefined) {
+                interpretation += `Ortalama fitness tahmini (${mean.toFixed(3)}) popülasyonun genel uygunluk seviyesini gösterir. `;
+                if (mean > 0.7) interpretation += "Bu, yüksek bir ortalama uygunluğa işaret ediyor. ";
+                else if (mean < 0.3) interpretation += "Bu, düşük bir ortalama uygunluğa işaret ediyor. ";
+            }
+
+            if (std !== undefined) {
+                interpretation += `Standart sapma (${std.toFixed(3)}) tahminlerdeki değişkenliği ifade eder. `;
+                if (std > 0.2) interpretation += "Yüksek standart sapma, fitness manzarasında büyük farklılıklar veya belirsizlikler olabileceğini düşündürür. ";
+                else if (std < 0.05) interpretation += "Düşük standart sapma, tahminlerin birbirine yakın ve daha stabil olduğunu gösterir. ";
+            }
+            
+            if (variance !== undefined) {
+                 interpretation += `Varyans (${variance.toFixed(3)}) ise bu değişkenliğin karesidir. `;
+                 if (variance > 0.04) interpretation += "Yüksek varyans, popülasyondaki bireylerin fitness değerleri arasında önemli bir dağılım olduğunu veya modelin tahminlerinde daha az güvende olduğunu gösterir. ";
+                 else interpretation += "Düşük varyans, daha homojen bir fitness dağılımına veya modelin tahminlerinde daha yüksek bir güvene işaret edebilir. ";
+            }
+
+            if (interpretation === "") return "Bu analiz için otomatik yorum üretilemedi.";
+            
+            return interpretation;
+        }
+
+        // Event listeners
+        el('startBtn').addEventListener('click', startSimulation);
+        el('pauseBtn').addEventListener('click', pauseResumeSimulation);
+        el('stopBtn').addEventListener('click', stopSimulation);
+        el('addBacteriaBtn').addEventListener('click', addBacteria);
+        el('exportDataBtn').addEventListener('click', exportData);
+        el('aiAnalysisBtn').addEventListener('click', triggerAiAnalysis); // Tekrar triggerAiAnalysis olarak düzeltildi.
+        el('askAiBtn').addEventListener('click', askAi);
+        el('ngrokStartBtn').addEventListener('click', startNgrok);
+        el('ngrokStopBtn').addEventListener('click', stopNgrok);
+        el('triggerTabpfnBtn').addEventListener('click', triggerTabPFNAnalysis);
+        el('analyzeTabpfnResultsBtn').addEventListener('click', analyzeTabPFNResults);
+        el('saveParamsBtn').addEventListener('click', saveSimulationParams);
+        
+        // AI input Enter key support
+        el('aiQuestionInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') askAi();
+        });
+
+        // Modal controls
+        el('closeModalBtn').addEventListener('click', () => { el('bacteriumModal').style.display = 'none'; });
+        window.addEventListener('click', (event) => {
+            if (event.target === el('bacteriumModal')) { el('bacteriumModal').style.display = 'none';}
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (document.activeElement.tagName === 'INPUT') return; // Input alanlarındayken kısayolları devre dışı bırak
+            switch(e.code) {
+                case 'Space': e.preventDefault(); pauseResumeSimulation(); break;
+                case 'KeyS': if(!isRunning) startSimulation(); break;
+                case 'KeyQ': if(isRunning) stopSimulation(); break;
+                case 'KeyA': if(isRunning) addBacteria(); break;
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSocketConnection(); // Socket.IO veya polling için
+            updateUI();
+            console.log('🚀 NeoMag V7 Web Arayüzü Yüklendi (v2)');
+            initializeEmptyCharts(); // Sayfa yüklendiğinde boş grafikler çizilsin
+        });
+
+        function updateCanvas(data) {
+            const canvas = el('simulationCanvas');
+            const canvasRect = canvas.getBoundingClientRect(); // Canvas boyutlarını al
+            // Canvas'ı temizle (sadece bakteri ve yiyecekleri)
+            Array.from(canvas.children).forEach(child => {
+                if (child.classList.contains('bacterium') || child.classList.contains('food')) {
+                    canvas.removeChild(child);
+                } else if (child.classList.contains('loading')) { // Yükleme mesajını da kaldır
+                    canvas.removeChild(child);
+                }
+            });
+
+
+            if (!data.bacteria_sample || data.bacteria_sample.length === 0) {
+                if (!canvas.querySelector('.loading')) { // Eğer yükleme mesajı yoksa ekle
+                    const loading = document.createElement('div');
+                    loading.className = 'loading';
+                    loading.textContent = isRunning ? 'Veri bekleniyor...' : 'Simülasyon başlatılmadı.';
+                    canvas.appendChild(loading);
+                }
+                return;
+            }
+            
+            // Bakteri ve yiyecek pozisyonlarını canvas boyutlarına göre ölçekle
+            const worldWidth = data.world_dimensions ? data.world_dimensions[0] : 100; // Backend'den gelmeli
+            const worldHeight = data.world_dimensions ? data.world_dimensions[1] : 100;
+
+            data.bacteria_sample.forEach((b, index) => {
+                const bacteriumEl = document.createElement('div');
+                // Sınıflandırma (örnek: fitness'a göre)
+                let bacClass = 'basic';
+                const fitness = b.current_fitness_calculated || 0;
+                if (fitness > 0.85) bacClass = 'elite';
+                else if (fitness > 0.7) bacClass = 'veteran';
+                else if (fitness > 0.55) bacClass = 'strong';
+                else if (b.energy_level > 70) bacClass = 'energetic';
+                else if (b.age < 50) bacClass = 'young';
+
+                bacteriumEl.className = `bacterium ${bacClass}`;
+                
+                // Pozisyonları ölçekle
+                const posX = (b.position[0] / worldWidth) * canvasRect.width;
+                const posY = (b.position[1] / worldHeight) * canvasRect.height;
+
+                bacteriumEl.style.left = `${Math.max(0, Math.min(posX, canvasRect.width - (b.size || 5) - 5))}px`;
+                bacteriumEl.style.top = `${Math.max(0, Math.min(posY, canvasRect.height - (b.size || 5) - 5))}px`;
+                
+                const displaySize = Math.max(5, (b.size || 0.5) * 5 + 5); // Boyutu biraz daha görünür yap
+                bacteriumEl.style.width = `${displaySize}px`;
+                bacteriumEl.style.height = `${displaySize}px`;
+                
+                bacteriumEl.dataset.id = b.id; // ID'yi data attribute olarak sakla
+                bacteriumEl.addEventListener('click', () => showBacteriumDetails(b));
+                canvas.appendChild(bacteriumEl);
+            });
+
+            if (data.food_sample) {
+                data.food_sample.forEach(food => {
+                    const foodEl = document.createElement('div');
+                    foodEl.className = 'food';
+                    const foodPosX = (food.position[0] / worldWidth) * canvasRect.width;
+                    const foodPosY = (food.position[1] / worldHeight) * canvasRect.height;
+                    
+                    foodEl.style.left = `${Math.max(0, Math.min(foodPosX, canvasRect.width - (food.size || 2)))}px`;
+                    foodEl.style.top = `${Math.max(0, Math.min(foodPosY, canvasRect.height - (food.size || 2)))}px`;
+                    const foodDisplaySize = Math.max(3, (food.size || 0.2) * 10);
+                    foodEl.style.width = `${foodDisplaySize}px`;
+                    foodEl.style.height = `${foodDisplaySize}px`;
+                    canvas.appendChild(foodEl);
+                });
+            }
+        }
+
+        function showBacteriumDetails(bacteriumData) {
+            const detailsEl = el('bacteriumDetails');
+            if (!bacteriumData) {
+                detailsEl.innerHTML = "<p>Detaylar yüklenemedi.</p>";
+                el('bacteriumModal').style.display = 'flex';
+                return;
+            }
+            
+            let html = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">`;
+            // Temel Bilgiler
+            html += `<div><h4 style="color: var(--accent); margin-bottom: 10px;">Temel Bilgiler</h4>
+                     <p><strong>ID:</strong> ${bacteriumData.id}</p>
+                     <p><strong>Konum (X, Y, Z):</strong> 
+                        ${bacteriumData.position ? `${bacteriumData.position[0].toFixed(1)}, ${bacteriumData.position[1].toFixed(1)}, ${bacteriumData.position[2].toFixed(1)}` : 'N/A'}
+                     </p>
+                     <p><strong>Hız (Vx, Vy, Vz):</strong> 
+                        ${bacteriumData.velocity ? `${bacteriumData.velocity[0].toFixed(2)}, ${bacteriumData.velocity[1].toFixed(2)}, ${bacteriumData.velocity[2].toFixed(2)}` : 'N/A'}
+                     </p>
+                     <p><strong>Enerji Seviyesi:</strong> ${bacteriumData.energy_level?.toFixed(2) || 'N/A'}</p>
+                     <p><strong>Yaş:</strong> ${bacteriumData.age?.toFixed(1) || 'N/A'}</p>
+                     <p><strong>Jenerasyon:</strong> ${bacteriumData.generation || 'N/A'}</p>
+                     <p><strong>Boyut:</strong> ${bacteriumData.size?.toFixed(2) || 'N/A'} µm</p>
+                     <p><strong>Kütle:</strong> ${(bacteriumData.mass * 1e15)?.toExponential(2) || 'N/A'} pg</p> <!-- pg cinsinden göstermek için -->
+                     </div>`;
+
+            // Genetik Bilgiler
+            html += `<div><h4 style="color: var(--accent); margin-bottom: 10px;">Genetik Profil</h4>
+                     <p><strong>Hesaplanan Fitness:</strong> ${bacteriumData.current_fitness_calculated?.toFixed(3) || 'N/A'}</p>
+                     <p><strong>Genom Uzunluğu:</strong> ${bacteriumData.genome_length || 'N/A'} bp</p>
+                     <p><strong>Fitness Landscape Pozisyonu (Örnek):</strong> 
+                        ${bacteriumData.genetic_profile?.fitness_landscape_position ? 
+                            `(${bacteriumData.genetic_profile.fitness_landscape_position.slice(0,3).map(f => f.toFixed(2)).join(', ')}...)` 
+                            : 'N/A'}
+                     </p>
+                     <p><strong>ATP Seviyesi:</strong> ${bacteriumData.atp_level?.toFixed(2) || 'N/A'} mM</p>
+                     </div>`;
+            
+            // Etkileşimler
+            html += `<div><h4 style="color: var(--accent); margin-bottom: 10px;">Etkileşimler & Kararlar</h4>
+                     <p><strong>MD Etkileşimleri:</strong> ${bacteriumData.md_interactions || 0}</p>
+                     <p><strong>Genetik Operasyonlar:</strong> ${bacteriumData.genetic_operations || 0}</p>
+                     <p><strong>AI Kararları:</strong> ${bacteriumData.ai_decisions || 0}</p>
+                     </div>`;
+
+            html += `</div>`;
+            detailsEl.innerHTML = html;
+            el('bacteriumModal').style.display = 'flex';
+        }
+
+        async function startNgrok() {
+            try {
+                el('ngrokStartBtn').disabled = true;
+                el('ngrokStartBtn').textContent = '🔄 Başlatılıyor...';
+                
+                const result = await fetchApi('/ngrok_start', 'POST');
+                if (result.status === 'success') {
+                    el('ngrokUrl').style.display = 'block';
+                    el('ngrokLink').href = result.url;
+                    el('ngrokLink').textContent = result.url;
+                    el('ngrokStopBtn').disabled = false;
+                    console.log('🌐 Ngrok tunnel başlatıldı:', result.url);
+                } else {
+                    alert('Ngrok başlatılamadı: ' + result.message);
+                    el('ngrokStartBtn').disabled = false;
+                }
+            } catch (error) {
+                console.error('❌ Ngrok start hatası:', error);
+                alert('Ngrok başlatma hatası: ' + error.message);
+                el('ngrokStartBtn').disabled = false;
+            } finally {
+                el('ngrokStartBtn').textContent = '🚀 Tunnel Başlat';
+            }
+        }
+
+        async function stopNgrok() {
+            try {
+                el('ngrokStopBtn').disabled = true;
+                el('ngrokStopBtn').textContent = '🔄 Durduruluyor...';
+                
+                const result = await fetchApi('/ngrok_stop', 'POST');
+                if (result.status === 'success') {
+                    el('ngrokUrl').style.display = 'none';
+                    el('ngrokStartBtn').disabled = false;
+                    console.log('🛑 Ngrok tunnel durduruldu');
+                } else {
+                    alert('Ngrok durdurulamadı: ' + result.message);
+                }
+            } catch (error) {
+                console.error('❌ Ngrok stop hatası:', error);
+                alert('Ngrok durdurma hatası: ' + error.message);
+            } finally {
+                el('ngrokStopBtn').disabled = true;
+                el('ngrokStopBtn').textContent = '🛑 Tunnel Durdur';
+            }
+        }
+
+        async function triggerTabPFNAnalysis() {
+            if (!isRunning) {
+                alert("Simülasyon çalışmıyorken TabPFN analizi tetiklenemez.");
+                return;
+            }
+            const btn = el('triggerTabpfnBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analiz Başlatılıyor...';
+
+            try {
+                const response = await fetchApi('/trigger_tabpfn_analysis', 'POST');
+                if (response.status === 'success') {
+                    showToast(response.message || 'TabPFN analizi başarıyla tetiklendi ve sonuçlar yakında güncellenecek.');
+                    // Backend zaten socket üzerinden güncel veriyi basacak, bu sayede UI otomatik güncellenir.
+                } else {
+                    showToast(response.message || 'TabPFN analizi tetiklenirken bir hata oluştu.', 'error');
+                }
+            } catch (error) {
+                console.error('❌ TabPFN Tetikleme Hatası:', error);
+                showToast('TabPFN analizi tetiklenirken bir ağ hatası oluştu: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-cogs"></i> TabPFN Analizi Tetikle';
+            }
+        }
+
+        async function analyzeTabPFNResults() {
+            if (!isRunning) {
+                showToast("Simülasyon çalışmıyorken TabPFN sonuçları analiz edilemez.", 'warning');
+                return;
+            }
+            
+            const btn = el('analyzeTabpfnResultsBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analiz Ediliyor...';
+
+            try {
+                const response = await fetchApi('/analyze_tabpfn_results', 'POST');
+                if (response.status === 'success') {
+                    // TabPFN analiz sonucunu AI response alanında göster
+                    const aiResponseDiv = el('aiResponse');
+                    aiResponseDiv.innerHTML = `
+                        <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                            <h4 style="color: #3b82f6; margin: 0 0 10px 0;">🧠 TabPFN Sonuç Analizi</h4>
+                            <div style="line-height: 1.6; color: #e2e8f0;">${response.analysis.replace(/\n/g, '<br>')}</div>
+                            <div style="margin-top: 10px; font-size: 12px; color: #9ca3af;">
+                                📁 Analiz dosyası: ${response.tabpfn_file.split('/').pop()}
+                            </div>
+                        </div>
+                    `;
+                    aiResponseDiv.style.display = 'block';
+                    
+                    showToast(response.message || 'TabPFN sonuçları başarıyla yorumlandı.');
+                    
+                    // Scroll to AI response
+                    aiResponseDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    showToast(response.message || 'TabPFN sonuç analizi yapılamadı.', 'error');
+                }
+            } catch (error) {
+                console.error('❌ TabPFN Result Analysis Error:', error);
+                showToast('TabPFN sonuç analizi sırasında bir hata oluştu: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-brain"></i> TabPFN Sonuçlarını Yorumla';
+            }
+        }
+
+        function updateSimulationParameterInputs(params) {
+            if (!params) return;
+            // console.log("Updating parameter inputs with:", params);
+            el('paramTemperature').value = params.temperature !== undefined ? params.temperature.toFixed(1) : '';
+            el('paramNutrient').value = params.nutrient_availability !== undefined ? params.nutrient_availability.toFixed(0) : '';
+            el('paramMutationRate').value = params.mutation_rate !== undefined ? params.mutation_rate.toExponential(1) : '';
+            el('paramRecombinationRate').value = params.recombination_rate !== undefined ? params.recombination_rate.toExponential(1) : '';
+            el('paramTabpfnInterval').value = params.tabpfn_analysis_interval !== undefined ? params.tabpfn_analysis_interval : '';
+            el('paramTabpfnBatchSize').value = params.tabpfn_batch_size !== undefined ? params.tabpfn_batch_size : '';
+        }
+
+        async function saveSimulationParams() {
+            const paramsToSave = {
+                temperature: parseFloat(el('paramTemperature').value),
+                nutrient_availability: parseFloat(el('paramNutrient').value),
+                mutation_rate: parseFloat(el('paramMutationRate').value), // parseFloat toExponential'ı doğru parse eder
+                recombination_rate: parseFloat(el('paramRecombinationRate').value),
+                tabpfn_analysis_interval: parseInt(el('paramTabpfnInterval').value, 10),
+                tabpfn_batch_size: parseInt(el('paramTabpfnBatchSize').value, 10)
+            };
+
+            // NaN veya geçersiz olabilecek değerleri filtrele (backend zaten kontrol ediyor ama frontend'de de yapılabilir)
+            for (const key in paramsToSave) {
+                if (isNaN(paramsToSave[key])) {
+                    delete paramsToSave[key]; // Geçersizse gönderme
+                }
+            }
+            if (Object.keys(paramsToSave).length === 0) {
+                showToast("Kaydedilecek geçerli parametre değeri girilmedi.", "warning");
+                return;
+            }
+
+            console.log("Saving parameters:", paramsToSave);
+            const btn = el('saveParamsBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kaydediliyor...';
+
+            try {
+                const response = await fetchApi('/update_simulation_params', 'POST', paramsToSave);
+                if (response.status === 'success') {
+                    showToast(response.message || 'Simülasyon parametreleri başarıyla güncellendi.');
+                    // Backend zaten socket üzerinden güncel veriyi (ve parametreleri) basacak,
+                    // bu sayede updateSimulationParameterInputs tekrar çalışıp inputları teyit edecektir.
+                } else {
+                    showToast(response.message || 'Parametreler güncellenirken bir hata oluştu.', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Parametre Kaydetme Hatası:', error);
+                showToast('Parametreler kaydedilirken bir ağ hatası oluştu: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Ayarları Kaydet ve Uygula';
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            // Kısa süre toast gösterimi için
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 9999;
+                padding: 12px 20px; border-radius: 6px; font-size: 14px;
+                background: ${type === 'error' ? '#dc2626' : type === 'warning' ? '#d97706' : '#059669'};
+                color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => document.body.removeChild(toast), 3000);
+        }
+
+        // Cache temizleme fonksiyonu
+        function clearApplicationCache() {
+            try {
+                // localStorage temizle
+                localStorage.clear();
+                console.log('✅ localStorage temizlendi');
+                
+                // sessionStorage temizle
+                sessionStorage.clear();
+                console.log('✅ sessionStorage temizlendi');
+                
+                // simDataCache'i sıfırla
+                simDataCache = {
+                    time: [], population: [], avg_fitness: [], avg_energy: [],
+                    diversity_pi: [], tajimas_d: [], avg_atp: [],
+                    temperature: [], nutrient_availability: []
+                };
+                console.log('✅ Simülasyon veri cache\'i temizlendi');
+                
+                // Service Worker cache temizle (varsa)
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(registrations => {
+                        registrations.forEach(registration => {
+                            registration.unregister();
+                        });
+                    });
+                }
+                
+                // Browser cache headers ekle
+                if (navigator.userAgent.indexOf('Chrome') > -1) {
+                    // Chrome için cache temizleme
+                    if ('storage' in navigator && 'estimate' in navigator.storage) {
+                        navigator.storage.estimate().then(estimate => {
+                            console.log('💾 Cache kullanımı:', estimate);
+                        });
+                    }
+                }
+                
+                console.log('🧹 Tüm cache temizlendi - Uygulama temiz başlatıldı');
+                showToast('Cache temizlendi - Temiz başlangıç', 'success');
+                
+            } catch (error) {
+                console.error('❌ Cache temizleme hatası:', error);
+                showToast('Cache temizlenirken hata oluştu', 'warning');
+            }
+        }
+
+        // Uygulama başlangıç fonksiyonu
+        function initializeApplication() {
+            console.log('🚀 NeoMag V7 Uygulaması başlatılıyor...');
+            
+            // İlk olarak cache'i temizle
+            clearApplicationCache();
+            
+            // Socket bağlantısını başlat
+            initializeSocketConnection();
+            
+            // Event listener'ları ekle
+            setupEventListeners();
+            
+            // Periyodik veri güncellemeyi başlat
+            startDataUpdateLoop();
+            
+            // UI durumunu güncelle
+            updateUI();
+            
+            console.log('✅ Uygulama başarıyla başlatıldı ve cache temizlendi');
+        }
+
+        // Periyodik veri güncelleme döngüsü - DEVRE DIŞI (Socket.IO kullanıyoruz)
+        function startDataUpdateLoop() {
+            // Periyodik veri çekme devre dışı - sadece Socket.IO kullanıyoruz
+            console.log('📡 Socket.IO veri akışı aktif - periyodik çekme devre dışı');
+        }
+
+        // Event listener'lar kurulumu (mevcut duplicate event'ları temizle)
+        function setupEventListeners() {
+            // Mevcut event listener'ları kontrol et ve duplicate'ları önle
+            console.log('🎯 Event listener\'lar kurulması başlatıldı');
+        }
+
+        // Socket.IO bağlantısını başlat
+        function initializeSocketConnection() {
+            console.log('🔌 Socket.IO bağlantısı kuruluyor...');
+            
+            // Check if Socket.IO loaded
+            if (typeof io !== 'function') {
+                console.error('❌ Socket.IO script yüklenmedi! Backend /socket.io/socket.io.js endpoint problemi.');
+                el('connectionStatus').textContent = 'SCRIPT HATASI';
+                el('connectionStatus').className = 'connection-status disconnected';
+                showToast('Socket.IO script yüklenemedi. CTRL+F5 ile hard refresh deneyin.', 'error');
+                return null;
+            }
+            
+            try {
+                // Socket.IO client - backend'den local endpoint
+                window.socket = io(); // default connects to same host:port
+                console.log('✅ Socket.IO client oluşturuldu');
+            } catch (error) {
+                console.error('❌ Socket.IO initialization error:', error);
+                el('connectionStatus').textContent = 'BAĞLANTI HATASI';
+                el('connectionStatus').className = 'connection-status disconnected';
+                showToast('Socket.IO bağlantısı kurulamadı: ' + error.message, 'error');
+                return null;
+            }
+            
+            // Bağlantı olayları
+            socket.on('connect', function() {
+                console.log('✅ Socket.IO bağlandı');
+                el('connectionStatus').textContent = 'BAĞLI';
+                el('connectionStatus').className = 'connection-status connected';
+            });
+            
+            socket.on('disconnect', function() {
+                console.log('❌ Socket.IO bağlantısı kesildi');
+                el('connectionStatus').textContent = 'BAĞLANTI KESİK';
+                el('connectionStatus').className = 'connection-status disconnected';
+            });
+            
+            // Simulation data listener - BACKEND'DEN GELEN REAL-TIME DATA
+            socket.on('simulation_update', function(data) {
+                console.log('📊 Simulation update alındı:', data);
+                
+                // Stats güncelle
+                el('bacteriaCountStat').textContent = data.bacteria_count || 0;
+                el('avgFitness').textContent = (data.avg_fitness || 0).toFixed(3);
+                el('avgEnergy').textContent = (data.avg_energy || 0).toFixed(1);
+                el('stepDisplay').textContent = data.time_step || 0;
+                
+                // Simulation status güncelle
+                if (data.running) {
+                    el('simulationStatus').textContent = 'ÇALIŞIYOR';
+                    el('simulationStatus').className = 'status-pill status-running';
+                } else {
+                    el('simulationStatus').textContent = 'DURDURULDU';
+                    el('simulationStatus').className = 'status-pill status-stopped';
+                }
+                
+                // Chart data ekle
+                if (simDataCache && data.time_step) {
+                    simDataCache.time.push(data.time_step);
+                    simDataCache.population.push(data.bacteria_count || 0);
+                    simDataCache.avg_fitness.push(data.avg_fitness || 0);
+                    simDataCache.avg_energy.push(data.avg_energy || 0);
+                    
+                    // Son 100 veri noktasını sakla
+                    if (simDataCache.time.length > 100) {
+                        for (let key in simDataCache) {
+                            simDataCache[key] = simDataCache[key].slice(-100);
+                        }
+                    }
+                    
+                    // Charts güncelle
+                    updateCharts();
+                }
+                
+                // Canvas güncelle
+                updateSimulationCanvas(data);
+            });
+        }
+        
+        // Simulation canvas güncelleme
+        function updateSimulationCanvas(data) {
+            const canvas = el('simulationCanvas');
+            
+            if (data.bacteria_count > 0) {
+                canvas.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: var(--text1);">
+                        <div style="font-size: 24px; margin-bottom: 10px;">🦠</div>
+                        <div style="font-size: 18px; margin-bottom: 5px;">${data.bacteria_count} Bakteri</div>
+                        <div style="font-size: 14px; color: var(--text2);">Adım: ${data.time_step}</div>
+                        <div style="font-size: 14px; color: var(--accent);">Fitness: ${(data.avg_fitness || 0).toFixed(3)}</div>
+                        <div style="font-size: 14px; color: var(--success);">Enerji: ${(data.avg_energy || 0).toFixed(1)}</div>
+                    </div>
+                `;
+            } else {
+                canvas.innerHTML = '<div class="loading">Bakteri bulunamadı...</div>';
+            }
+        }
+
+        // DOM yüklendiğinde uygulamayı başlat
+        document.addEventListener('DOMContentLoaded', initializeApplication);
+    </script>
+</body>
+</html>

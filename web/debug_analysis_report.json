@@ -1,0 +1,15 @@
+{
+  "tabpfn_status": {
+    "module_available": false,
+    "csv_data_available": true,
+    "results_csv_available": true
+  },
+  "gemini_status": {
+    "api_key_present": true,
+    "instance_created": true,
+    "real_api_call": true
+  },
+  "simulation_errors": [],
+  "integration_issues": [],
+  "recommendations": []
+}
