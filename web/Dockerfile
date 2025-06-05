@@ -26,7 +26,7 @@ RUN mkdir -p /app/data
 EXPOSE 5000
 
 # Environment variables
-ENV FLASK_APP=web_server.py
+ENV FLASK_APP=simple_server.py
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
 
@@ -35,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:5000/ || exit 1
 
 # Run with gunicorn for production
-CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:5000", "web_server:app"] 
+CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:5000", "simple_server:app"]

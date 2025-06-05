@@ -1243,46 +1243,10 @@ class NeoMagV7WebSimulation:
                     print(f"✅ GERÇEK TabPFN analizi başarılı!")
                 except Exception as e:
                     logger.error(f"GERÇEK TabPFN failed: {e}")
-                    # Şimdi bile real alternative kullanacağız
-                    # Wright-Fisher model ile
-                    if hasattr(self, 'wf_model') and self.wf_model and POPULATION_GENETICS_AVAILABLE:
-                        try:
-                            from population_genetics_engine import SelectionType
-                            temp_population = self.genetic_population
-                            for _ in range(5):
-                                temp_population = self.wf_model.simulate_generation(
-                                    temp_population,
-                                    SelectionType.DIRECTIONAL,
-                                    selection_coefficient=0.01
-                                )
-                            
-                            if temp_population.alleles:
-                                fitness_values = [a.fitness for a in temp_population.alleles]
-                                predictions_mean = float(np.mean(fitness_values))
-                                predictions_std = float(np.std(fitness_values))
-                                analysis_method = "Wright-Fisher Evolution Model"
-                                prediction_time = 0.05
-                            else:
                     predictions_mean = float(np.mean(y))
                     predictions_std = float(np.std(y))
-                                analysis_method = "Bio-Physical Statistical Analysis"
-                                prediction_time = 0.01
-                        except Exception as e2:
-                            logger.warning(f"Wright-Fisher fallback failed: {e2}")
-                            predictions_mean = float(np.mean(y))
-                            predictions_std = float(np.std(y))
-                            analysis_method = "Advanced Statistical Analysis"
-                            prediction_time = 0.01
-            else:
-                        # Enhanced statistical analysis instead of mock
-                        variance = np.var(y)
-                        n = len(y)
-                        sem = np.std(y) / np.sqrt(n) if n > 1 else 0
-                        
-                        predictions_mean = float(np.mean(y) + np.random.normal(0, sem))
-                        predictions_std = float(np.std(y) * (1 + np.random.uniform(-0.1, 0.1)))
-                        analysis_method = "Enhanced Bio-Statistical Model"
-                        prediction_time = 0.02
+                    analysis_method = "Fallback Statistical Analysis"
+                    prediction_time = 0.01
             else:
                 # Gerçek TabPFN failed to initialize - use sophisticated alternatives
                 print("⚠️ TabPFN predictor not initialized, using Wright-Fisher model")

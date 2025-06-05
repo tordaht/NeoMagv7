@@ -36,9 +36,10 @@ pip install flask flask-socketio
 ```
 
 ### 2. Sunucuyu Başlatma
+Socket.IO problemleri yaşarsanız `simple_server.py` dosyasını kullanabilirsiniz.
 ```bash
 cd neomag_v7/web
-python web_server.py
+python simple_server.py
 ```
 
 ### 3. Web Arayüzüne Erişim
@@ -165,9 +166,9 @@ Check: JavaScript konsol hatalarını inceleyin
 
 ### Debug Modunda Çalıştırma
 ```python
-# web_server.py'de son satırı düzenleyin
+# simple_server.py içinde
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
 ```
 
 ## 🌐 Browser Uyumluluğu
